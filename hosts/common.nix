@@ -25,7 +25,7 @@ in
   # Make the flake's custom marine packages (pypilot, signalk-server, …) resolve
   # for the service modules' `package` defaults. Applied here rather than in the
   # module so navigation.nix stays usable where pkgs is pinned (NixOS tests).
-  nixpkgs.overlays = [ (final: _prev: import ../pkgs final) ];
+  nixpkgs.overlays = [ (final: prev: import ../pkgs final prev) ];
 
   # Whole stack from a single switch; the headless services default on and stay
   # overridable per host (opencpn is GUI, so left off here).

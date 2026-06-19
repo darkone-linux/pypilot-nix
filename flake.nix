@@ -16,7 +16,7 @@
       ];
 
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
-      navPackages = pkgs: import ./pkgs pkgs;
+      navPackages = pkgs: (import ./pkgs) pkgs pkgs;
 
       # A NixOS host: shared base + per-host modules. Each host picks its HAT
       # via services.navigation.hardware in its own configuration.nix.
