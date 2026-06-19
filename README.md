@@ -1,5 +1,11 @@
 # pypilot-nix
 
+[![CI](https://img.shields.io/github/actions/workflow/status/darkone-linux/pypilot-nix/ci.yml?branch=main&label=CI&logo=github)](https://github.com/darkone-linux/pypilot-nix/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![NixOS](https://img.shields.io/badge/NixOS-26.11+-blue.svg?logo=nixos&logoColor=white)](https://nixos.org)
+[![Platform](https://img.shields.io/badge/platform-aarch64--linux-lightgrey)](.)
+[![Built with Nix](https://img.shields.io/badge/Built%20with-Nix-5277C3.svg?logo=nixos&logoColor=white)](https://nixos.org)
+
 Declarative NixOS distribution for embedded marine navigation on Raspberry Pi.
 
 ## Features
