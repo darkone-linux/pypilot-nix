@@ -6,7 +6,7 @@
   };
 
   outputs =
-    { nixpkgs }:
+    { nixpkgs, ... }:
     let
       # Dev/build hosts: aarch64 is the deploy target, x86_64 for emulated builds.
       systems = [
@@ -15,8 +15,17 @@
       ];
 
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
+      navPackages = pkgs: import ./pkgs pkgs;
     in
     {
+      packages = forAllSystems (
+        pkgs:
+        (navPackages pkgs)
+        // {
+          default = (navPackages pkgs).pypilot;
+        }
+      );
+
       devShells = forAllSystems (pkgs: {
         default = pkgs.mkShell {
 
