@@ -46,6 +46,10 @@ buildPythonPackage rec {
     hash = "sha256-2EKTHBErpUsm1m7gHcQnQDGMvY22D9+14KEoXqAQO6M=";
   };
 
+  # Keep the control head idle when its LCD is disabled (driver "none"); without
+  # this the screen subprocess busy-loops a core. See doc/probleme-hat-lcd.md.
+  patches = [ ./pypilot-headless-lcd.patch ];
+
   pyproject = true;
   build-system = [ setuptools ];
 

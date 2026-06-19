@@ -94,5 +94,5 @@ ssh root@lab-rpi4 'lsblk; mount -o ro /dev/mmcblk0p1 /tmp/fw; cat /tmp/fw/config
 ## Prochaines étapes
 
 - Décision archi HAT/DT (cf. solutions ci-dessus) — **mise de côté** pour l'instant (choix utilisateur).
-- Rendre `pypilot_hat` tolérant au LCD absent (headless-safe) pour RF/IR + appairage — **approuvé**, à faire.
+- `pypilot_hat` headless-safe — **FAIT** : LCD désactivé via l'option `pypilot.controlHead.lcd` (défaut `"none"` → lance `pypilot_hat none`, driver `none` déjà supporté par `lcd.py`, n'appelle jamais `ugfx.spiscreen`). Plus de crash ; keypad/IR/RF restent actifs (processus principal). Patch `pkgs/pypilot-headless-lcd.patch` : met le sous-processus LCD en veille au lieu de saturer un cœur (`poll()` court-circuite avant son `sleep` quand `screen is None`). Repasser l'option sur le modèle de dalle (`"jlx12864"`) une fois SPI fonctionnel.
 - Corriger le build `ugfx` (`spiscreen`) une fois le DT/SPI fonctionnel.
