@@ -58,18 +58,30 @@ in
         }
         {
           name = "pypilot-hat-spi0";
+
+          # The mainline bcm2711 DTB exports SPI0 as symbol `spi` (not `spi0`)
+          # and has no `spidev0` symbol, so enable `&spi` and declare the spidev
+          # child inline. `rohm,dh2228fv` is the spidev driver's generic match
+          # (a bare `spidev` compatible is refused by recent kernels).
           dtsText = ''
             /dts-v1/;
             /plugin/;
             / {
               compatible = "brcm,bcm2835";
               fragment@0 {
-                target = <&spi0>;
-                __overlay__ { status = "okay"; };
-              };
-              fragment@1 {
-                target = <&spidev0>;
-                __overlay__ { status = "okay"; };
+                target = <&spi>;
+                __overlay__ {
+                  status = "okay";
+                  #address-cells = <1>;
+                  #size-cells = <0>;
+
+                  spidev@0 {
+                    compatible = "rohm,dh2228fv";
+                    reg = <0>;
+                    spi-max-frequency = <2000000>;
+                    status = "okay";
+                  };
+                };
               };
             };
           '';

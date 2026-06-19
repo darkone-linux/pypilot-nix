@@ -39,6 +39,9 @@ let
     };
 
     environment.HOME = stateDir;
+
+    # pypilot's hat process shells out to `renice` to lower its own priority.
+    path = [ pkgs.util-linux ];
   };
 in
 {
