@@ -81,6 +81,7 @@ in
     ./signalk.nix
     ./opencpn.nix
     ./gps-time.nix
+    ./desktop.nix
   ];
 
   options.services.navigation = {

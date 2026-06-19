@@ -14,6 +14,10 @@
   # Expose the Signal K hub to the boat network (chartplotters, tablets).
   services.navigation.signalk.openFirewall = true;
 
+  # Chartplotter desktop on the helm screen (labwc, always-on).
+  services.navigation.opencpn.enable = true;
+  services.navigation.desktop.enable = true;
+
   # Stable /dev names from USB IDs (`lsusb`). Set to enable gps0 + gpsd time
   # sync and the autopilot motor symlink.
   # services.navigation.gps.vendorId = "1546";

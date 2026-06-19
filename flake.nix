@@ -100,6 +100,7 @@
         pypilot = ./modules/pypilot.nix;
         signalk = ./modules/signalk.nix;
         opencpn = ./modules/opencpn.nix;
+        desktop = ./modules/desktop.nix;
       };
 
       # All hosts share the navigation modules; add boats/benches here without

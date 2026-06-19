@@ -11,4 +11,8 @@
 
   networking.hostName = "lab-rpi5";
   services.navigation.hardware = "macarthur-hat";
+
+  # Bench display: chartplotter desktop (labwc, always-on).
+  services.navigation.opencpn.enable = true;
+  services.navigation.desktop.enable = true;
 }
