@@ -14,4 +14,6 @@ in
   pypilot = py.callPackage ./pypilot.nix { inherit rtimulib2 pypilot-data; };
 
   signalk-server = pkgs.callPackage ./signalk-server.nix { };
+
+  ais-catcher = pkgs.callPackage ./ais-catcher.nix { };
 }

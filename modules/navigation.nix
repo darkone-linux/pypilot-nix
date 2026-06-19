@@ -55,6 +55,7 @@ let
 
   gpsAutodetect = cfg.gps.enable && cfg.gps.autodetect;
   aisAutodetect = aiscfg.enable && aiscfg.autodetect;
+  aisSdr = aiscfg.enable && aiscfg.sdr.enable;
 
   # GNSS receivers hotplugged into gpsd: the curated list plus an explicit pin.
   gpsHotplugIds =
@@ -319,12 +320,39 @@ in
         ) aiscfg.autodetectIds
       )
 
+      # RTL-SDR dongle readable by the ais-catcher service (system, not a seat
+      # user, so uaccess does not apply — assign a group explicitly).
+      ++ optionals aisSdr [
+        ''SUBSYSTEM=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2832", GROUP="plugdev", MODE="0660"''
+        ''SUBSYSTEM=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2838", GROUP="plugdev", MODE="0660"''
+      ]
+
       # Autopilot motor controller (pinned by USB ID).
       ++ optional hasMotorIds (ttySymlink {
         inherit (cfg.motor) vendorId productId;
         name = cfg.motor.symlink;
       })
     );
+
+    # AIS via SDR: decode from the RTL-SDR dongle and forward NMEA over UDP to
+    # the signalk SDR provider (:10110). The dongle conflicts with the kernel
+    # DVB driver, so blacklist it. Dongle + reception are bench items (level 3).
+    boot.blacklistedKernelModules = mkIf aisSdr [ "dvb_usb_rtl28xxu" ];
+    users.groups.plugdev = mkIf aisSdr { };
+
+    systemd.services.ais-catcher = mkIf aisSdr {
+      description = "AIS-catcher SDR receiver feeding Signal K over UDP";
+      wantedBy = [ "multi-user.target" ];
+      after = [ "network.target" ];
+
+      serviceConfig = {
+        ExecStart = "${pkgs.ais-catcher}/bin/AIS-catcher -d:0 -u 127.0.0.1 ${toString aiscfg.sdr.udpPort}";
+        DynamicUser = true;
+        SupplementaryGroups = [ "plugdev" ];
+        Restart = "on-failure";
+        RestartSec = 10;
+      };
+    };
 
     assertions = [
       {

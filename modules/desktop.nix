@@ -116,6 +116,11 @@ in
 
         # OpenCPN is a wxWidgets/X11 app; labwc launches it through Xwayland.
         pkgs.xwayland
+
+        # Helm workstation apps: web consoles (SignalK/pypilot), PDFs, media.
+        pkgs.chromium
+        pkgs.evince
+        pkgs.vlc
       ];
 
       # Wayland graphics stack and a base font for the panel/menus.

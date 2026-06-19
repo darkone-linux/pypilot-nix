@@ -5,10 +5,16 @@
 # and zeroconf service discovery) and flakes. Host files add the hostname, the
 # HAT and the boot/bootloader specifics.
 
-{ lib, ... }:
+{ lib, pkgs, ... }:
 
 {
   imports = [ ../modules/navigation.nix ];
+
+  # Baseline tooling useful on every boat box, headless or not.
+  environment.systemPackages = [
+    pkgs.git
+    pkgs.zip
+  ];
 
   # Make the flake's custom marine packages (pypilot, signalk-server, …) resolve
   # for the service modules' `package` defaults. Applied here rather than in the
