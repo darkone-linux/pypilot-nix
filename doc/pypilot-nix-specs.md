@@ -41,6 +41,7 @@ flake.nix                       # nixosConfigurations + checks/apps/overlays
 │   ├── signalk.nix             # Service systemd signalk-server
 │   ├── opencpn.nix             # Config XML opencpn générée
 │   ├── gps-time.nix            # Synchro horloge GPS via chrony (hors ligne)
+│   ├── desktop.nix             # Bureau labwc (Wayland) + anti-veille (always-on)
 │   └── hardware/
 │       ├── pypilot-hat.nix     # I2C, serial, overlays DT
 │       └── macarthur-hat.nix   # UART0, I2C, power management
@@ -48,8 +49,8 @@ flake.nix                       # nixosConfigurations + checks/apps/overlays
 │   ├── pypilot.nix             # buildPythonPackage (+ checkPhase)
 │   ├── rtimulib2.nix           # Dépendance C++ de pypilot, absente de nixpkgs
 │   ├── signalk-server.nix      # buildNpmPackage
-│   ├── opencpn-plugin-pypilot.nix
-│   └── avnav.nix               # (futur) chartplotter web
+│   ├── ais-catcher.nix         # Décodeur AIS SDR (à proposer à nixpkgs)
+│   └── opencpn-plugin-pypilot.nix
 ├── tests/
 │   ├── integration.nix         # runNixOSTest aarch64 (CI, jetable)
 │   ├── hardware-checks.sh      # Validation banc réel via SSH (niveau 3)
@@ -110,6 +111,14 @@ services.navigation = {
     enable = true;
     plugins = [ "pypilot" ]; # plugin pypilot_pi pré-installé
   };
+
+  desktop = {
+    enable = true;
+    compositor = "labwc"; # bureau Wayland type Raspberry Pi OS
+
+    # Écran toujours allumé : aucune veille, aucun écran de veille (à bord).
+    alwaysOn = true;
+  };
 };
 ```
 
@@ -148,6 +157,8 @@ services.udev.extraRules = ''
 ```
 
 Les `idVendor`/`idProduct` sont des options du module, avec valeurs par défaut pour le matériel courant.
+
+> **Évolution Phase 6a** : en plus de ces règles épinglées, une **auto-détection générique** (gpsd hotplug USB pour le GPS, symlink AIS par puce/classe série + provider SignalK) permet de brancher n'importe quel GPS/AIS sans le déclarer au préalable. Voir Phase 6a.
 
 ### 2. gpsd → signalk
 
@@ -282,10 +293,79 @@ Les données de calibration IMU sont écrites au runtime. Elles vivent dans `Sta
 
 > **Note d'architecture (phase 5)** : le framework de test NixOS épingle `nixpkgs.pkgs`, ce qui entrait en conflit avec le `nixpkgs.overlays` posé par `navigation.nix`. L'overlay des packages custom a été déplacé dans la base hôte `hosts/common.nix` ; `navigation.nix` redevient un module pur (compatible pkgs épinglé) et le test applique l'overlay via `navPkgs.testers.runNixOSTest`.
 
-### Phase 6 — Logiciels complémentaires (futur)
+### Phase 6 — Reproduction de la config OpenPlotter de référence
 
-18. `pkgs/avnav.nix` — chartplotter web
-19. Intégration xygrib (déjà packagé) dans la suite par défaut
+Basée sur l'introspection du banc OpenPlotter existant (RPi 4, Bookworm, OpenPlotter 4.x : pypilot HAT sur `ttyOP_pilot`/`ttyAMA0`, AIS USB sur `ttyOP_ais`, AIS SDR via `ais-catcher` → UDP :10110, bureau X11 LXDE-pi). Découpée en sous-phases ; livrer puis valider chacune.
+
+#### 6a — UART0 (HAT) + auto-détection GPS/AIS
+
+**HAT pypilot — motor controller sur `ttyAMA0` @ 38400** (manquant aujourd'hui dans `pypilot-hat.nix`) :
+
+- Libérer le PL011 (équiv. `disable-bt`) via `hardware.deviceTree.overlays`, désactiver `serial-getty@ttyAMA0`, symlink udev `ttyOP_pilot` (`KERNELS=="fe201000.serial:0.0"`, mode 0666).
+- Aligner sur `macarthur-hat.nix` (déjà traité là-bas) ; factoriser le bout UART0 commun aux deux HAT.
+- Image SD générique : `disable-bt` est un overlay firmware ; le reproduire en DT overlay (nœud BT off + remux uart0 GPIO14/15). À valider au banc (niveau 3).
+
+**GPS — plug-and-play** :
+
+- gpsd en hotplug USB (règles udev gpsd → `gpsdctl add`) au lieu d'une liste statique de devices. Brancher un GPS USB → gpsd l'ajoute → SignalK le lit via gpsd.
+- Option `services.navigation.gps.autodetect`.
+
+**AIS — plug-and-play** :
+
+- Règle udev par puces/VID:PID série connus (CP210x, CH340, FTDI, AIS dédiés…) → symlink stable `/dev/ttyOP_ais`.
+- `signalk.nix` : providers AIS série (`/dev/ttyOP_ais` @ 38400) + AIS SDR (UDP :10110), conditionnés par options.
+
+#### 6b — Bureau labwc (Wayland) + écran toujours allumé
+
+- Compositeur **labwc** (Wayland) — bureau type Raspberry Pi OS récent, léger ; `modules/desktop.nix` (nouveau), option `services.navigation.desktop.enable`.
+- Composants : panneau (waybar), file manager (pcmanfm), terminal, autologin de l'utilisateur nav, autostart OpenCPN + pypilot web (:8000).
+- **Contrainte absolue : aucune veille, aucun écran de veille — écran toujours allumé** (section dédiée ci-dessous).
+
+#### 6c — Suite logicielle par défaut
+
+- Cœur (déjà prévu) : opencpn, xygrib, gpsd (+clients), signalk, pypilot.
+- Ajouts issus du banc :
+  - **ais-catcher** — décodeur AIS SDR (RTL-SDR → UDP :10110). Absent de nixpkgs : **package maison `pkgs/ais-catcher.nix`**, à proposer ensuite en amont (PR nixpkgs).
+  - **rtl-sdr** (SDR), **can-utils** (NMEA2000, déjà tiré par `macarthur-hat.nix`).
+- Plugins SignalK observés sur le banc : `@signalk/zones`, `signalk-to-nmea2000` (sortie N2K) — pré-installer comme pour pypilot.
+- Utilitaires poste de bord : **chromium** (consoles web SignalK/pypilot, cartes en ligne), **evince** (PDF : manuels, licences cartes), **git**, **vlc** (médias, flux caméra), **zip**.
+
+#### 6d (optionnel) — Control head pypilot
+
+- IR via lirc (gpio4) + RF 433 MHz (touches du HAT). Non bloquant ; télécommande/clavier physique du HAT.
+
+#### Écran toujours allumé (anti-veille) — exigence ferme
+
+Ordinateur de bord : l'écran ne doit **jamais** s'éteindre ni se mettre en veille, le système ne doit **jamais** suspendre. Garanties posées à plusieurs niveaux pour qu'aucun ne puisse être contourné :
+
+```nix
+# modules/desktop.nix (extrait)
+{
+  # 1. Système : interdire toute suspension/hibernation.
+  systemd.targets = {
+    sleep.enable = false;
+    suspend.enable = false;
+    hibernate.enable = false;
+    hybrid-sleep.enable = false;
+  };
+  powerManagement.enable = false;
+
+  # 2. logind : ignorer inactivité et capot.
+  services.logind.settings.Login = {
+    IdleAction = "ignore";
+    HandleLidSwitch = "ignore";
+    HandleLidSwitchExternalPower = "ignore";
+  };
+
+  # 3. Console TTY : désactiver le blanking écran.
+  boot.kernelParams = [ "consoleblank=0" ];
+
+  # 4. Wayland/labwc : ne PAS lancer swayidle/swaylock ; aucun timeout DPMS.
+}
+```
+
+- Pas de `swayidle`/`swaylock` dans l'autostart, aucune règle d'idle/DPMS côté labwc.
+- À vérifier au banc (niveau 3) : l'écran reste allumé bien après le délai d'inactivité par défaut.
 
 ---
 
@@ -488,12 +568,11 @@ Le niveau 1 tourne sur chaque push. Le niveau 2 (VM émulée) est optionnel et p
 | **opencpn** | Chartplotter principal | Présent |
 | **xygrib** | Visualisation/téléchargement GRIB météo (successeur de zygrib) | Présent |
 | **zygrib** | Ancien viewer GRIB (déprécié, remplacé par xygrib) | À éviter — utiliser xygrib |
-| **avnav** | Chartplotter web (Andreas Vogel), bon support tactile | Absent — à packager |
 | **qtVlm** | Navigation + routage météo | Absent + **freeware non-libre** (packaging délicat, redistribution à vérifier) |
 | **gpsd / gpsd-clients** | Outils GPS (xgps, cgps, gpsmon) | Présent |
 | **pps-tools** | Diagnostic PPS pour synchro horloge | Présent |
 
-Recommandation : démarrer avec opencpn + xygrib (déjà packagés), ajouter avnav dans un second temps (packaging web app, modèle similaire à signalk). qtVlm en dernier vu sa licence.
+Recommandation : démarrer avec opencpn + xygrib (déjà packagés). qtVlm en dernier vu sa licence.
 
 ### Synchronisation horloge via GPS (sans Internet)
 
@@ -561,5 +640,6 @@ Cette fonctionnalité devra avoir son propre test sur le banc : vérifier qu'apr
 - Cross-platform compilation (NixOS & Flakes Book) : https://nixos-and-flakes.thiscute.world/development/cross-platform-compilation
 - GPSD Time Service HOWTO : https://gpsd.gitlab.io/gpsd/gpsd-time-service-howto.html
 - chrony FAQ (refclock GPS/PPS) : https://chrony-project.org/faq.html
-- avnav : https://www.wellenvogel.net/software/avnav/docs/beschreibung.html
 - xygrib : https://opengribs.org/
+- labwc (compositeur Wayland) : https://github.com/labwc/labwc
+- AIS-catcher (décodeur AIS SDR) : https://github.com/jvde-github/AIS-catcher
