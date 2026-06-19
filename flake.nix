@@ -45,7 +45,19 @@
 
       formatter = forAllSystems (pkgs: pkgs.nixfmt);
 
-      # Hardware HAT modules (selector + pypilot-hat + macarthur-hat).
-      nixosModules.hardware = ./modules/hardware;
+      # Adds the custom marine packages (pypilot, signalk-server, …) to pkgs;
+      # the service modules resolve their default `package` through it.
+      overlays.default = final: _prev: navPackages final;
+
+      nixosModules = {
+
+        # Hardware HAT modules (selector + pypilot-hat + macarthur-hat).
+        hardware = ./modules/hardware;
+
+        # Service modules (own their services.navigation.<svc> options).
+        pypilot = ./modules/pypilot.nix;
+        signalk = ./modules/signalk.nix;
+        opencpn = ./modules/opencpn.nix;
+      };
     };
 }
