@@ -32,7 +32,9 @@ Les deux HATs utilisent des interfaces Linux standard (i2c-dev, ttyAMA0, GPIO) c
 ## Architecture du flake
 
 ```
-flake.nix                       # nixosConfigurations + checks.<system> + deploy
+flake.nix                       # nixosConfigurations + checks/apps/overlays
+├── .github/
+│   └── workflows/ci.yml        # CI : nix flake check (binfmt aarch64 + cache)
 ├── modules/
 │   ├── navigation.nix          # Module principal, options haut niveau
 │   ├── pypilot.nix             # Service systemd pypilot
@@ -238,37 +240,47 @@ Les données de calibration IMU sont écrites au runtime. Elles vivent dans `Sta
 
 ## Plan d'implémentation suggéré
 
-### Phase 1 — Packages (prioritaire)
+### Phase 1 — Packages (prioritaire) — ✅ réalisé
 
 1. `pkgs/rtimulib2.nix` — lib C++ sans dépendances complexes
 2. `pkgs/pypilot.nix` — buildPythonPackage avec patch setup.py
 3. `pkgs/signalk-server.nix` — buildNpmPackage (node2nix ou fetchNpmDeps)
 
-### Phase 2 — Modules hardware
+> `pkgs/pypilot-data.nix` ajouté (dépendance git de pypilot). `opencpn-plugin-pypilot` reporté (nixpkgs n'expose pas d'infra de plugins opencpn).
+
+### Phase 2 — Modules hardware — ✅ réalisé
 
 4. `modules/hardware/pypilot-hat.nix` — I2C enable, kernel modules, device tree overlays
 5. `modules/hardware/macarthur-hat.nix` — UART0, I2C, power management udev
 
-### Phase 3 — Services
+> Sélecteur `services.navigation.hardware` dans `modules/hardware/default.nix`. Overlays de périphériques complexes (MCP2515, SC16IS752…), pins et adresses à valider au banc (niveau 3).
+
+### Phase 3 — Services — ✅ réalisé
 
 6. `modules/pypilot.nix` — systemd service + StateDirectory
 7. `modules/signalk.nix` — systemd service + gestion plugins + settings.json
 8. `modules/opencpn.nix` — config initiale + plugin pypilot
 
-### Phase 4 — Intégration & hôtes
+> Plugin opencpn `pypilot_pi` reporté ; l'option `plugins` (liste de packages) est prête à le recevoir.
+
+### Phase 4 — Intégration & hôtes — ✅ réalisé
 
 9. `modules/navigation.nix` — module principal qui orchestre tout
 10. `modules/gps-time.nix` — synchro horloge GPS via chrony (hors ligne)
 11. `hosts/common.nix` + déclaration des `nixosConfigurations` (navpi, lab-rpi4, lab-rpi5, lab-vm)
-12. Génération des SD images par hôte + procédure de bootstrap/flash documentée
+12. Génération des SD images par hôte (`packages.aarch64-linux.<hôte>-sdImage`, `just sd-image`) + bootstrap/flash documenté
 
-### Phase 5 — Tests, déploiement & CI
+> 3 images SD construites et vérifiées sous émulation aarch64 (`pypilot-nix-<hôte>.img.zst`). L'overlay des packages est appliqué par `hosts/common.nix`.
 
-13. `passthru.tests` / `checkPhase` sur chaque package (niveau 1)
-14. `tests/integration.nix` — test d'intégration VM aarch64 avec GPS simulé (niveau 2A)
-15. `hosts/lab-vm/` — lab VM aarch64 persistant + workflow `nixos-rebuild --target-host` (niveau 2B)
-16. Pipeline CI (`nix flake check` avec binfmt aarch64, idéalement runner natif ARM)
-17. Configuration deploy-rs (lab-rpi4, lab-rpi5) + `tests/hardware-checks.sh` (niveau 3)
+### Phase 5 — Tests, déploiement & CI — ✅ réalisé
+
+13. ✅ Tests packages (niveau 1) — les 4 packages exposés dans `checks.<system>` ; `pythonImportsCheck` (`RTIMU`, `pypilot.linebuffer`, `pypilot.arduino_servo`, `pypilot_data`) exécuté à chaque build.
+14. ✅ `tests/integration.nix` (`runNixOSTest`, x86_64 + aarch64) — vérifie signalk (`:3000`), pypilot (`:20220`) et un GPS simulé via `gpsfake` + `tests/fixtures/sample.nmea` (fix `TPV` lu sur `gpsd`). **Vert en x86_64** (KVM, ~21 s).
+15. ✅ Lab VM aarch64 — hôte `lab-vm` + `apps.aarch64-linux.lab-vm` (`nix run .#lab-vm`) + itération `nixos-rebuild --target-host`.
+16. ✅ `.github/workflows/ci.yml` — `nix flake check` + builds/tests x86_64 et packages aarch64 via binfmt + cache `nix-community`. Le test d'intégration aarch64 est réservé à un runner ARM natif (TCG trop lent).
+17. ⚠️ `tests/hardware-checks.sh` (niveau 3) écrit (I2C/IMU/UART/CAN/chrony via SSH, rapport pass/fail). **deploy-rs documenté mais non câblé** : nécessite l'ajout de l'input `deploy-rs` (impossible tant que `flake.lock` reste figé).
+
+> **Note d'architecture (phase 5)** : le framework de test NixOS épingle `nixpkgs.pkgs`, ce qui entrait en conflit avec le `nixpkgs.overlays` posé par `navigation.nix`. L'overlay des packages custom a été déplacé dans la base hôte `hosts/common.nix` ; `navigation.nix` redevient un module pur (compatible pkgs épinglé) et le test applique l'overlay via `navPkgs.testers.runNixOSTest`.
 
 ### Phase 6 — Logiciels complémentaires (futur)
 
