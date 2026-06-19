@@ -44,3 +44,16 @@ check:
     set -euo pipefail
     echo "[ {{ CYAN }}NPY{{ NORMAL }} ] DEADNIX • Full checking..."
     find . -name "*.nix" -exec deadnix -eq {} \;
+
+#==============================================================================
+# Build
+#==============================================================================
+
+# Build the SD image for a host (navpi, banc-rpi4, banc-rpi5)
+[group('build')]
+sd-image host:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "[ {{ CYAN }}NPY{{ NORMAL }} ] SD-IMAGE • Building {{ host }}..."
+    nix build ".#packages.aarch64-linux.{{ host }}-sdImage" -o "result-{{ host }}"
+    echo "[ {{ CYAN }}NPY{{ NORMAL }} ] SD-IMAGE • $(ls result-{{ host }}/sd-image/*.img.zst)"

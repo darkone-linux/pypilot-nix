@@ -36,15 +36,22 @@ Declarative NixOS distribution for embedded marine navigation on Raspberry Pi.
 
 Generate and flash a bootable SD image for your hardware:
 
+Building targets `aarch64`, so build on a native ARM machine, a remote
+builder, or an x86_64 host with `binfmt` emulation; the `nix-community` cache
+avoids recompiling.
+
 ```shell
 # Build the SD image (e.g. for banc-rpi4)
-nix build .#nixosConfigurations.banc-rpi4.config.system.build.sdImage
+just sd-image banc-rpi4
+# or: nix build .#packages.aarch64-linux.banc-rpi4-sdImage -o result-banc-rpi4
 
-# Flash to SD card
-sudo dd if=result/sd-image/*.img of=/dev/sdX bs=4M status=progress conv=fsync
+# Flash to SD card (the image is zstd-compressed)
+zstd -dc result-banc-rpi4/sd-image/*.img.zst \
+  | sudo dd of=/dev/sdX bs=4M status=progress conv=fsync
 ```
 
-Supported hosts: `banc-rpi4`, `banc-rpi5`, `navpi`, `lab-vm`.
+SD-image hosts: `banc-rpi4`, `banc-rpi5`, `navpi`. The `lab-vm` runs as a VM
+(see below).
 
 ### Iterative updates
 

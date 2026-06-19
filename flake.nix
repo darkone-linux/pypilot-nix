@@ -6,7 +6,7 @@
   };
 
   outputs =
-    { nixpkgs, ... }:
+    { self, nixpkgs, ... }:
     let
 
       # Dev/build hosts: aarch64 is the deploy target, x86_64 for emulated builds.
@@ -34,15 +34,29 @@
           ]
           ++ modules;
         };
+
+      # Per-host bootable SD images (aarch64), keyed `<host>-sdImage`. Only the
+      # Raspberry Pi hosts produce one (the lab VM boots no SD card).
+      rpiHosts = [
+        "navpi"
+        "banc-rpi4"
+        "banc-rpi5"
+      ];
+      sdImages = builtins.listToAttrs (
+        map (name: {
+          name = "${name}-sdImage";
+          value = self.nixosConfigurations.${name}.config.system.build.sdImage;
+        }) rpiHosts
+      );
     in
     {
-      packages = forAllSystems (
+      packages = nixpkgs.lib.recursiveUpdate (forAllSystems (
         pkgs:
         (navPackages pkgs)
         // {
           default = (navPackages pkgs).pypilot;
         }
-      );
+      )) { aarch64-linux = sdImages; };
 
       devShells = forAllSystems (pkgs: {
         default = pkgs.mkShell {
