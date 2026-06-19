@@ -21,6 +21,10 @@
   rtimulib2,
   pypilot-data,
 
+  # HAT control head (pypilot_hat): libgpiod v2 bindings + LCD image rendering.
+  gpiod,
+  pillow,
+
   # signalk + web UI dependencies (pyproject optional groups, enabled here so
   # the daemon and its web interface are usable out of the box).
   requests,
@@ -77,6 +81,8 @@ buildPythonPackage rec {
     zeroconf
     rtimulib2
     pypilot-data
+    gpiod
+    pillow
     requests
     websocket-client
     flask
