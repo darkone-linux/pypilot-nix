@@ -334,9 +334,11 @@ Basée sur l'introspection du banc OpenPlotter existant (RPi 4, Bookworm, OpenPl
 - Utilitaires poste de bord : **chromium**/**evince**/**vlc** (bureau) + **git**/**zip** (commun).
 - ⚠️ Plugins SignalK (`@signalk/zones`, `signalk-to-nmea2000`) : **reporté** — installation déclarative non triviale (npm runtime) ; installables via l'UI web en attendant.
 
-#### 6d (optionnel) — Control head pypilot
+#### 6d (optionnel) — Control head pypilot — ✅ réalisé (service)
 
-- IR via lirc (gpio4) + RF 433 MHz (touches du HAT). Non bloquant ; télécommande/clavier physique du HAT.
+> **Réalisé** : service `pypilot-hat` (`pypilot_hat`), activé d'office quand le Pypilot HAT est monté (`services.navigation.pypilot.controlHead.enable`, défaut auto sur `hardware == "pypilot-hat"`). Pilote LCD/keypad et écoute IR + RF 433 — c'est ce process qui enregistre les codes lors de l'**appairage de la télécommande**. Aucun overlay kernel : décodage GPIO logiciel (lgpio/libgpiod), conforme au banc OpenPlotter.
+
+- IR + RF 433 MHz décodés en logiciel sur GPIO par `pypilot_hat`. Télécommande non encore installée : l'appairage réel se fera au banc une fois le matériel présent.
 
 #### Écran toujours allumé (anti-veille) — exigence ferme
 

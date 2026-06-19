@@ -83,6 +83,17 @@ in
       description = "Run pypilot_web, the local web configuration interface.";
     };
 
+    controlHead.enable = mkOption {
+      type = types.bool;
+      default = config.services.navigation.hardware == "pypilot-hat";
+      defaultText = lib.literalExpression ''config.services.navigation.hardware == "pypilot-hat"'';
+      description = ''
+        Run pypilot_hat, the control-head process driving the Pypilot HAT's LCD,
+        keypad, IR and 433 MHz RF receiver (software-decoded over GPIO). Required
+        to pair the RF remote. Defaults on when the Pypilot HAT is fitted.
+      '';
+    };
+
     openFirewall = mkOption {
       type = types.bool;
       default = false;
@@ -122,6 +133,18 @@ in
       baseService "${cfg.package}/bin/pypilot_web"
       // {
         description = "pypilot web configuration interface";
+        wantedBy = [ "multi-user.target" ];
+        after = [ "pypilot.service" ];
+        wants = [ "pypilot.service" ];
+      }
+    );
+
+    # Control head: drives the HAT's LCD/keypad and listens to the IR and
+    # 433 MHz RF receivers; this is what records the remote's codes when pairing.
+    systemd.services.pypilot-hat = mkIf cfg.controlHead.enable (
+      baseService "${cfg.package}/bin/pypilot_hat"
+      // {
+        description = "pypilot HAT control head (LCD, keypad, IR, 433 MHz RF)";
         wantedBy = [ "multi-user.target" ];
         after = [ "pypilot.service" ];
         wants = [ "pypilot.service" ];
