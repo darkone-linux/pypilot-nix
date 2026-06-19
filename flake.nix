@@ -44,5 +44,8 @@
       });
 
       formatter = forAllSystems (pkgs: pkgs.nixfmt);
+
+      # Hardware HAT modules (selector + pypilot-hat + macarthur-hat).
+      nixosModules.hardware = ./modules/hardware;
     };
 }
