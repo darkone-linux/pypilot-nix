@@ -35,7 +35,7 @@ let
     "${pkgs.waybar}/bin/waybar &"
     "${pkgs.pcmanfm}/bin/pcmanfm --desktop &"
   ]
-  ++ optional opencpn.enable "${opencpn.package}/bin/opencpn &"
+  ++ optional (opencpn.enable && cfg.autostartOpencpn) "${opencpn.package}/bin/opencpn &"
   ++ cfg.autostart;
 in
 {
@@ -61,6 +61,12 @@ in
         Keep the screen lit forever: no blanking, no DPMS, no system suspend.
         Mandatory aboard — the chartplotter must stay visible at all times.
       '';
+    };
+
+    autostartOpencpn = mkOption {
+      type = types.bool;
+      default = false;
+      description = "Launch OpenCPN on session start (off by default — open it manually).";
     };
 
     autostart = mkOption {
@@ -90,6 +96,10 @@ in
 
       # labwc autostart: panel, file manager, navigation apps.
       environment.etc."xdg/labwc/autostart".text = concatStringsSep "\n" autostartLines + "\n";
+
+      # Keyboard layout for the Wayland session follows the system setting.
+      environment.etc."xdg/labwc/environment".text =
+        "XKB_DEFAULT_LAYOUT=${config.services.xserver.xkb.layout}\n";
 
       # Minimal panel config; a broken panel must not take the session down.
       environment.etc."xdg/waybar/config.jsonc".text = builtins.toJSON {

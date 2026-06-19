@@ -36,12 +36,26 @@
     isNormalUser = true;
     extraGroups = [ "wheel" ];
     initialPassword = "NixPypilot";
+
+    # Deploy key (gponcon@gmail.com): enables key-based `nixos-rebuild
+    # --target-host skipper@…` without ssh-copy-id.
+    openssh.authorizedKeys.keys = [
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEKerVgYq/5RlpOPvDVBTHNoY3AM7NLJ9BBvWvW9Us2h gponcon@gmail.com"
+    ];
   };
+
+  # Passwordless sudo for wheel so `nixos-rebuild --use-remote-sudo` activates
+  # without an interactive prompt.
+  security.sudo.wheelNeedsPassword = false;
 
   services.openssh = {
     enable = true;
     settings.PasswordAuthentication = lib.mkDefault true;
   };
+
+  # French (azerty) keyboard, console and graphical session alike.
+  console.keyMap = "fr";
+  services.xserver.xkb.layout = "fr";
 
   # Resolve <host>.local (deploy workflow) and let pypilot/signalk discover each
   # other over zeroconf.
