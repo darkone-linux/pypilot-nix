@@ -293,7 +293,7 @@ Les données de calibration IMU sont écrites au runtime. Elles vivent dans `Sta
 
 > **Note d'architecture (phase 5)** : le framework de test NixOS épingle `nixpkgs.pkgs`, ce qui entrait en conflit avec le `nixpkgs.overlays` posé par `navigation.nix`. L'overlay des packages custom a été déplacé dans la base hôte `hosts/common.nix` ; `navigation.nix` redevient un module pur (compatible pkgs épinglé) et le test applique l'overlay via `navPkgs.testers.runNixOSTest`.
 
-### Phase 6 — Reproduction de la config OpenPlotter de référence
+### Phase 6 — Reproduction de la config OpenPlotter de référence — ✅ réalisé (validation banc en attente)
 
 Basée sur l'introspection du banc OpenPlotter existant (RPi 4, Bookworm, OpenPlotter 4.x : pypilot HAT sur `ttyOP_pilot`/`ttyAMA0`, AIS USB sur `ttyOP_ais`, AIS SDR via `ais-catcher` → UDP :10110, bureau X11 LXDE-pi). Découpée en sous-phases ; livrer puis valider chacune.
 
@@ -372,6 +372,39 @@ Ordinateur de bord : l'écran ne doit **jamais** s'éteindre ni se mettre en vei
 
 - Pas de `swayidle`/`swaylock` dans l'autostart, aucune règle d'idle/DPMS côté labwc.
 - À vérifier au banc (niveau 3) : l'écran reste allumé bien après le délai d'inactivité par défaut.
+
+#### Validation au banc (niveau 3) — prochaine étape
+
+Tout ce qui suit dépend du matériel réel (HAT, bus, dongle, écran, télécommande) et n'est pas simulable. Déployer sur un Pi 4 réel (`nixos-rebuild switch --flake .#lab-rpi4 --target-host …`) puis dérouler.
+
+**Boot & image**
+
+- [ ] Image SD `lab-rpi4`/`navpi` boote sur Pi 4 réel ; `lab-rpi5` sur Pi 5 (expérimental).
+- [ ] Overlay `disable-bt` reproduit sur l'image générique (nœud BT off + remux uart0 → GPIO14/15) ; `console=serial0` absent du cmdline.
+
+**6a — UART0 / GPS / AIS**
+
+- [ ] Motor controller reconnu sur `/dev/ttyOP_pilot` (ttyAMA0 @ 38400) ; `pypilot_servo` détecte le contrôleur.
+- [ ] IMU ICM20948 sur I2C : `i2cdetect -y 1` → `0x68` ; pypilot lit cap/gyros.
+- [ ] GPS USB en hotplug : branché → `gpsdctl` l'ajoute → `gpsd` le lit → position dans SignalK. Confirmer l'accès série du démon gpsd (drop de privilèges, groupe `dialout`).
+- [ ] GPS time hors réseau : `chronyc sources` montre le GPS sélectionné (`*`), horloge calée.
+- [ ] AIS série : récepteur branché → `/dev/ttyOP_ais` → provider SignalK reçoit les trames.
+
+**6b — Bureau / anti-veille**
+
+- [ ] Session labwc démarre (autologin `skipper`), sortie HDMI OK (KMS vc4), OpenCPN s'affiche, waybar + pcmanfm présents.
+- [ ] Écran toujours allumé : passé le délai d'inactivité, l'écran NE s'éteint PAS (aucun DPMS) ; aucun suspend système.
+
+**6c — SDR / paquets**
+
+- [ ] ais-catcher sur dongle RTL-SDR réel : AIS décodé → UDP :10110 → provider SDR SignalK. Vérifier blacklist DVB + accès dongle (`plugdev`).
+- [ ] Plugins SignalK (`@signalk/zones`, `signalk-to-nmea2000`) installés via l'UI web (packaging déclaratif à faire ensuite).
+
+**6d — Control head / télécommande**
+
+- [ ] LCD jlx12864 (spidev0.0) affiche ; keypad GPIO répond.
+- [ ] **Appairage télécommande RF 433** : enregistrer les codes via `pypilot_hat` (actions `hat.conf`), vérifier que les touches pilotent l'autopilote.
+- [ ] IR (gpio4) si une télécommande IR est utilisée.
 
 ---
 
