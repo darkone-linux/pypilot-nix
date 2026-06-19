@@ -20,6 +20,7 @@ let
     mkIf
     mkOption
     mkEnableOption
+    optional
     optionals
     types
     ;
@@ -28,27 +29,69 @@ let
 
   settingsFormat = pkgs.formats.json { };
 
-  # Pull the pypilot autopilot in as a TCP NMEA0183 source (port 20220).
+  # AIS lives on the navigation module; read it defensively so signalk stays
+  # usable when imported without the navigation orchestrator.
+  navAis = config.services.navigation.ais or null;
+  aisSerial = navAis != null && navAis.enable;
+  aisSdr = navAis != null && navAis.sdr.enable;
+
+  # One NMEA0183 input provider (serial or udp), mirroring OpenPlotter's layout.
+  nmea0183Provider = id: subOptions: {
+    inherit id;
+    enabled = true;
+    pipeElements = [
+      {
+        type = "providers/simple";
+        options = {
+          logging = false;
+          type = "NMEA0183";
+          inherit subOptions;
+        };
+      }
+    ];
+  };
+
+  # pypilot autopilot as a TCP NMEA0183 source (port 20220).
+  pypilotProviders = optionals cfg.pypilotIntegration [
+    {
+      id = "pypilot";
+      enabled = true;
+      pipeElements = [
+        {
+          type = "providers/tcp";
+          options = {
+            host = "localhost";
+            port = 20220;
+          };
+        }
+      ];
+    }
+  ];
+
+  # AIS from a serial receiver and/or SDR (ais-catcher) over UDP.
+  aisProviders =
+    optional aisSerial (
+      nmea0183Provider "ais" {
+        type = "serial";
+        device = navAis.device;
+        baudrate = navAis.baudrate;
+        validateChecksum = true;
+      }
+    )
+    ++ optional aisSdr (
+      nmea0183Provider "ais-sdr" {
+        type = "udp";
+        port = toString navAis.sdr.udpPort;
+        validateChecksum = true;
+      }
+    );
+
   defaultSettings = {
     interfaces = { };
     ssl = false;
     mdns = true;
     port = cfg.port;
-    pipedProviders = optionals cfg.pypilotIntegration [
-      {
-        id = "pypilot";
-        enabled = true;
-        pipeElements = [
-          {
-            type = "providers/tcp";
-            options = {
-              host = "localhost";
-              port = 20220;
-            };
-          }
-        ];
-      }
-    ];
+    pipedProviders = pypilotProviders ++ aisProviders;
   };
 
   settingsFile = settingsFormat.generate "signalk-settings.json" (
@@ -113,6 +156,9 @@ in
       group = cfg.group;
       description = "Signal K server";
       home = stateDir;
+
+      # Serial AIS/NMEA devices are group dialout.
+      extraGroups = optional aisSerial "dialout";
     };
 
     users.groups.${cfg.group} = mkIf (cfg.group == "signalk") { };

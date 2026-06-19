@@ -3,6 +3,7 @@
 # Buses exercised:
 #  - I2C-1 : ICM20948 IMU, read from userspace by RTIMULib (raw /dev/i2c-1).
 #  - SPI0  : JLX12864 LCD (ST7565) driven by pypilot's hat/ugfx via spidev.
+#  - UART0 : PL011 (ttyAMA0) → arduino_servo motor controller at 38400 bd.
 #  - GPIO  : keypad, 433 MHz RF receiver, buzzer.
 #
 # Overlay node enables and access groups are the declarative baseline; exact
@@ -28,6 +29,12 @@ in
 
     # spidev exposes the LCD bus to pypilot's display code.
     boot.kernelModules = [ "spidev" ];
+
+    # The motor controller (arduino_servo) talks on the PL011 (ttyAMA0) at
+    # 38400 bd; it must carry data, not a login console. Freeing it from
+    # Bluetooth needs `dtoverlay=disable-bt` plus dropping `console=serial0`
+    # from the firmware cmdline (host config) — validated on the bench (level 3).
+    systemd.services."serial-getty@ttyAMA0".enable = false;
 
     hardware.deviceTree = {
       enable = true;
@@ -81,6 +88,10 @@ in
       SUBSYSTEM=="bcm2835-gpiomem", GROUP="gpio", MODE="0660"
       KERNEL=="gpiochip[0-9]*", GROUP="gpio", MODE="0660"
       KERNEL=="spidev[0-9]*.[0-9]*", GROUP="spi", MODE="0660"
+
+      # Stable name for the motor controller, matching OpenPlotter's convention;
+      # fe201000.serial is the BCM2711 (Pi 4) PL011 instance (Pi 5 differs).
+      KERNEL=="ttyAMA[0-9]*", KERNELS=="fe201000.serial:0.0", SYMLINK+="ttyOP_pilot", GROUP="dialout", MODE="0660"
     '';
 
     # i2c-tools for bench bring-up (i2cdetect on the IMU).
