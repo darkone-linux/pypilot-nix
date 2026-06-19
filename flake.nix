@@ -51,6 +51,11 @@
 
       nixosModules = {
 
+        # Orchestrator: single entry point importing every module below and
+        # wiring the whole stack from `services.navigation.enable`.
+        navigation = ./modules/navigation.nix;
+        default = ./modules/navigation.nix;
+
         # Hardware HAT modules (selector + pypilot-hat + macarthur-hat).
         hardware = ./modules/hardware;
 
