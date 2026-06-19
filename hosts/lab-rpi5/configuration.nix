@@ -14,5 +14,6 @@
 
   # Bench display: chartplotter desktop (labwc, always-on).
   services.navigation.opencpn.enable = true;
+  services.navigation.opencpn.plugins = [ pkgs.opencpn-plugin-pypilot ];
   services.navigation.desktop.enable = true;
 }

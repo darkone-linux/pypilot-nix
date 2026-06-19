@@ -18,6 +18,7 @@ let
     mkIf
     mkOption
     mkEnableOption
+    concatStringsSep
     types
     ;
 
@@ -33,6 +34,25 @@ let
     DataConnections=${cfg.dataConnection}
     ${cfg.extraConfig}
   '';
+
+  # When plugins are listed, wrap opencpn with OPENCPN_PLUGIN_DIRS so the
+  # plugin .so files living in their own store paths are discoverable.
+  # opencpn respects this env var (plugin_paths.cpp).
+  opencpnPkg =
+    if cfg.plugins == [ ] then
+      cfg.package
+    else
+      pkgs.runCommand "opencpn-with-plugins"
+        {
+          nativeBuildInputs = [ pkgs.makeWrapper ];
+        }
+        ''
+          mkdir -p $out/bin
+          cp ${cfg.package}/bin/opencpn $out/bin/opencpn
+          wrapProgram $out/bin/opencpn \
+            --set OPENCPN_PLUGIN_DIRS "${concatStringsSep ":" (map (p: "${p}/lib/opencpn") cfg.plugins)}" \
+            --prefix XDG_DATA_DIRS : "${concatStringsSep ":" (map (p: "${p}/share") cfg.plugins)}"
+        '';
 in
 {
   options.services.navigation.opencpn = {
@@ -55,8 +75,10 @@ in
       default = [ ];
       example = lib.literalExpression "[ pkgs.opencpn-plugin-pypilot ]";
       description = ''
-        Plugin packages installed alongside OpenCPN. The pypilot plugin
-        (pypilot_pi) is not yet packaged in this flake; add it here once it is.
+        Plugin packages installed alongside OpenCPN. Each plugin must export
+        its shared library under lib/opencpn/ (and data under
+        share/opencpn/plugins/<name>/). Setting this wraps the opencpn binary
+        with OPENCPN_PLUGIN_DIRS so plugins are discoverable.
       '';
     };
 
@@ -84,7 +106,7 @@ in
   };
 
   config = mkIf cfg.enable {
-    environment.systemPackages = [ cfg.package ] ++ cfg.plugins;
+    environment.systemPackages = [ opencpnPkg ] ++ cfg.plugins;
 
     # Create the config dir and copy the conf only when it does not yet exist
     # (tmpfiles `C`), leaving GUI-written settings untouched on later boots.

@@ -20,6 +20,8 @@ in
 
   ais-catcher = final.callPackage ./ais-catcher.nix { };
 
+  opencpn-plugin-pypilot = final.callPackage ./opencpn-plugin-pypilot.nix { };
+
   # wf-config 0.10.0 unconditionally enables tests via meson
   # (-Dtests=enabled) and links tests against -ldoctest, but doctest
   # ships no shared library — link failure. Disable meson tests too
@@ -27,6 +29,6 @@ in
   # doctest at configure time).
   wf-config = prev.wf-config.overrideAttrs (old: {
     doCheck = false;
-    mesonFlags = (old.mesonFlags or []) ++ [ "-Dtests=disabled" ];
+    mesonFlags = (old.mesonFlags or [ ]) ++ [ "-Dtests=disabled" ];
   });
 }

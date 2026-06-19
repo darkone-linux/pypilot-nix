@@ -17,7 +17,7 @@ Style télégraphique. `[x]` fait · `[~]` partiel · `[ ]` à faire.
 - [x] Logs `journalctl` investigués (gpiod, renice, ugfx, SPI) → voir `probleme-hat-lcd.md`.
 - [x] **Essayer wayfire** (labwc jugé trop minimaliste : pas de menu, illisible). Ajouter wayfire au module desktop (compositeur configurable) + panneau/menu type Raspberry Pi OS (wf-shell / wf-panel). Basculer lab-rpi4 sur wayfire.
 - [x] **Control head pypilot headless-safe** : LCD désactivé (option `pypilot.controlHead.lcd = "none"` → `pypilot_hat none`). Plus de crash ; keypad/IR/RF actifs (processus principal, indépendant du LCD) → appairage RF 433 possible via l'UI web. Patch `pypilot-headless-lcd.patch` : sous-processus LCD en veille au lieu de boucler. Repasser à `"jlx12864"` quand SPI fonctionnera.
-- [ ] **OpenCPN — plugin pypilot** : ni activé, ni dans la liste des plugins dispo. Packager `opencpn-plugin-pypilot` (pypilot_pi) et le câbler via `services.navigation.opencpn.plugins`.
+- [x] **OpenCPN — plugin pypilot** : packagé (`pkgs/opencpn-plugin-pypilot.nix`) et câblé via `services.navigation.opencpn.plugins`. Actif sur lab-rpi4, navpi, lab-rpi5.
 
 ## Retours banc — « à investiguer plus tard »
 

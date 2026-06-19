@@ -16,6 +16,7 @@
 
   # Chartplotter desktop on the helm screen (labwc, always-on).
   services.navigation.opencpn.enable = true;
+  services.navigation.opencpn.plugins = [ pkgs.opencpn-plugin-pypilot ];
   services.navigation.desktop.enable = true;
 
   # Stable /dev names from USB IDs (`lsusb`). Set to enable gps0 + gpsd time

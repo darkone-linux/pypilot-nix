@@ -14,7 +14,7 @@ Développement d'une configuration NixOS déclarative pour station de navigation
 | **signalk-server** | Hub de données marines (Node.js) | Absent — à packager |
 | **opencpn** | Cartographie / chartplotter | Présent |
 | **gpsd** | Démon GPS | Présent (`services.gpsd`) |
-| **opencpn-plugin-pypilot** | Contrôle route → pypilot depuis opencpn | Absent — à packager |
+| **opencpn-plugin-pypilot** | Contrôle route → pypilot depuis opencpn | Packagé localement |
 
 ---
 
@@ -257,7 +257,7 @@ Les données de calibration IMU sont écrites au runtime. Elles vivent dans `Sta
 2. `pkgs/pypilot.nix` — buildPythonPackage avec patch setup.py
 3. `pkgs/signalk-server.nix` — buildNpmPackage (node2nix ou fetchNpmDeps)
 
-> `pkgs/pypilot-data.nix` ajouté (dépendance git de pypilot). `opencpn-plugin-pypilot` reporté (nixpkgs n'expose pas d'infra de plugins opencpn).
+> `pkgs/pypilot-data.nix` ajouté (dépendance git de pypilot). `opencpn-plugin-pypilot` packagé (`pkgs/opencpn-plugin-pypilot.nix`) avec wrapper OPENCPN_PLUGIN_DIRS.
 
 ### Phase 2 — Modules hardware — ✅ réalisé
 
@@ -272,7 +272,7 @@ Les données de calibration IMU sont écrites au runtime. Elles vivent dans `Sta
 7. `modules/signalk.nix` — systemd service + gestion plugins + settings.json
 8. `modules/opencpn.nix` — config initiale + plugin pypilot
 
-> Plugin opencpn `pypilot_pi` reporté ; l'option `plugins` (liste de packages) est prête à le recevoir.
+> Plugin opencpn `pypilot_pi` packagé ; l'option `plugins` le reçoit, le wrapper OPENCPN_PLUGIN_DIRS le rend visible.
 
 ### Phase 4 — Intégration & hôtes — ✅ réalisé
 
