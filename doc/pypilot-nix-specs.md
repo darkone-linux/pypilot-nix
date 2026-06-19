@@ -297,7 +297,9 @@ Les données de calibration IMU sont écrites au runtime. Elles vivent dans `Sta
 
 Basée sur l'introspection du banc OpenPlotter existant (RPi 4, Bookworm, OpenPlotter 4.x : pypilot HAT sur `ttyOP_pilot`/`ttyAMA0`, AIS USB sur `ttyOP_ais`, AIS SDR via `ais-catcher` → UDP :10110, bureau X11 LXDE-pi). Découpée en sous-phases ; livrer puis valider chacune.
 
-#### 6a — UART0 (HAT) + auto-détection GPS/AIS
+#### 6a — UART0 (HAT) + auto-détection GPS/AIS — ✅ réalisé
+
+> **Réalisé** : `pypilot-hat.nix` (getty `ttyAMA0` off + symlink `ttyOP_pilot`, groupe `dialout`), hotplug gpsd (socket `-F /run/gpsd.sock` + service `gpsdctl@` + IDs GNSS curés), AIS (`services.navigation.ais` + providers série/UDP dans `signalk.nix`). Reste banc (niveau 3) : overlay `disable-bt`, hotplug GPS réel, accès série du démon gpsd.
 
 **HAT pypilot — motor controller sur `ttyAMA0` @ 38400** (manquant aujourd'hui dans `pypilot-hat.nix`) :
 
@@ -315,20 +317,22 @@ Basée sur l'introspection du banc OpenPlotter existant (RPi 4, Bookworm, OpenPl
 - Règle udev par puces/VID:PID série connus (CP210x, CH340, FTDI, AIS dédiés…) → symlink stable `/dev/ttyOP_ais`.
 - `signalk.nix` : providers AIS série (`/dev/ttyOP_ais` @ 38400) + AIS SDR (UDP :10110), conditionnés par options.
 
-#### 6b — Bureau labwc (Wayland) + écran toujours allumé
+#### 6b — Bureau labwc (Wayland) + écran toujours allumé — ✅ réalisé
+
+> **Réalisé** : `modules/desktop.nix` (labwc via greetd autologin, waybar/pcmanfm/foot, autostart OpenCPN), anti-veille (`systemd.targets` sleep/suspend masquées, `powerManagement.enable=false`, logind idle/lid `ignore`, `consoleblank=0`, pas de swayidle/DPMS). Activé sur navpi/lab-rpi4/lab-rpi5.
 
 - Compositeur **labwc** (Wayland) — bureau type Raspberry Pi OS récent, léger ; `modules/desktop.nix` (nouveau), option `services.navigation.desktop.enable`.
 - Composants : panneau (waybar), file manager (pcmanfm), terminal, autologin de l'utilisateur nav, autostart OpenCPN + pypilot web (:8000).
 - **Contrainte absolue : aucune veille, aucun écran de veille — écran toujours allumé** (section dédiée ci-dessous).
 
-#### 6c — Suite logicielle par défaut
+#### 6c — Suite logicielle par défaut — ✅ réalisé (plugins SignalK reportés)
 
 - Cœur (déjà prévu) : opencpn, xygrib, gpsd (+clients), signalk, pypilot.
 - Ajouts issus du banc :
-  - **ais-catcher** — décodeur AIS SDR (RTL-SDR → UDP :10110). Absent de nixpkgs : **package maison `pkgs/ais-catcher.nix`**, à proposer ensuite en amont (PR nixpkgs).
-  - **rtl-sdr** (SDR), **can-utils** (NMEA2000, déjà tiré par `macarthur-hat.nix`).
-- Plugins SignalK observés sur le banc : `@signalk/zones`, `signalk-to-nmea2000` (sortie N2K) — pré-installer comme pour pypilot.
-- Utilitaires poste de bord : **chromium** (consoles web SignalK/pypilot, cartes en ligne), **evince** (PDF : manuels, licences cartes), **git**, **vlc** (médias, flux caméra), **zip**.
+  - **ais-catcher** — décodeur AIS SDR (RTL-SDR → UDP :10110). Absent de nixpkgs : **package maison `pkgs/ais-catcher.nix` créé (v0.69, backend RTL-SDR)** + service `ais-catcher` lié à `services.navigation.ais.sdr.enable` (DVB blacklisté, accès dongle via `plugdev`) ; à proposer ensuite en amont (PR nixpkgs).
+  - **rtl-sdr** (SDR, tiré par le service), **can-utils** (NMEA2000, déjà tiré par `macarthur-hat.nix`).
+- Utilitaires poste de bord : **chromium**/**evince**/**vlc** (bureau) + **git**/**zip** (commun).
+- ⚠️ Plugins SignalK (`@signalk/zones`, `signalk-to-nmea2000`) : **reporté** — installation déclarative non triviale (npm runtime) ; installables via l'UI web en attendant.
 
 #### 6d (optionnel) — Control head pypilot
 
