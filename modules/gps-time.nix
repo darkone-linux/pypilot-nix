@@ -55,13 +55,13 @@ in
       enable = true;
 
       # GPS is the time reference: SHM 0 is the NMEA time gpsd exports. Allow a
-      # large initial step (clock may be far off at cold boot) and keep the RTC
-      # updated for the next boot without a fix.
+      # large initial step (the clock may be far off at cold boot). chrony's
+      # default RTC trimming keeps the RTC disciplined for the next fix-less
+      # boot, so no `rtcsync` here (it conflicts with that and crashes chrony).
       extraConfig = ''
         refclock SHM 0 refid GPS offset 0.5 delay 0.2
         ${optionalString gcfg.pps.enable "refclock PPS ${gcfg.pps.device} lock GPS refid PPS prefer"}
         makestep 1.0 3
-        rtcsync
       '';
     };
 

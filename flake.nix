@@ -17,6 +17,23 @@
 
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
       navPackages = pkgs: import ./pkgs pkgs;
+
+      # A NixOS host: shared base + selected HAT + per-host modules. `hw` is the
+      # HAT passed to services.navigation.hardware (null for the no-HAT lab VM).
+      mkHost =
+        {
+          system,
+          hw,
+          modules,
+        }:
+        nixpkgs.lib.nixosSystem {
+          inherit system;
+          modules = [
+            ./hosts/common.nix
+            { services.navigation.hardware = hw; }
+          ]
+          ++ modules;
+        };
     in
     {
       packages = forAllSystems (
@@ -64,6 +81,34 @@
         pypilot = ./modules/pypilot.nix;
         signalk = ./modules/signalk.nix;
         opencpn = ./modules/opencpn.nix;
+      };
+
+      # All hosts share the navigation modules; add boats/benches here without
+      # duplicating logic.
+      nixosConfigurations = {
+        navpi = mkHost {
+          system = "aarch64-linux";
+          hw = "macarthur-hat";
+          modules = [ ./hosts/navpi/configuration.nix ];
+        };
+
+        banc-rpi4 = mkHost {
+          system = "aarch64-linux";
+          hw = "pypilot-hat";
+          modules = [ ./hosts/banc-rpi4/configuration.nix ];
+        };
+
+        banc-rpi5 = mkHost {
+          system = "aarch64-linux";
+          hw = "macarthur-hat";
+          modules = [ ./hosts/banc-rpi5/configuration.nix ];
+        };
+
+        lab-vm = mkHost {
+          system = "aarch64-linux";
+          hw = null;
+          modules = [ ./hosts/lab-vm/configuration.nix ];
+        };
       };
     };
 }
