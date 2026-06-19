@@ -38,6 +38,7 @@ in
     ./pypilot.nix
     ./signalk.nix
     ./opencpn.nix
+    ./gps-time.nix
   ];
 
   options.services.navigation = {
