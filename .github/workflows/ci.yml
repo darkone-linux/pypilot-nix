@@ -1,0 +1,59 @@
+# CI — level 1 (package builds + checks) and level 2A (VM integration).
+#
+# x86_64 runs natively; aarch64 packages build under binfmt emulation, pulling
+# most of the closure from the nix-community cache. The aarch64 VM integration
+# test is too slow under emulation here — run it on a native ARM runner.
+
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable aarch64 emulation (binfmt)
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - uses: cachix/install-nix-action@v30
+        with:
+          extra_nix_config: |
+            extra-platforms = aarch64-linux
+            experimental-features = nix-command flakes
+
+      - name: Use the nix-community aarch64 cache
+        uses: cachix/cachix-action@v15
+        with:
+          name: nix-community
+
+      # Evaluate every output first (fast, no heavy builds).
+      - name: Evaluate flake
+        run: nix flake check -L --no-build
+
+      # Level 1 + 2A natively on x86_64.
+      - name: Build packages (x86_64)
+        run: |
+          nix build -L \
+            .#checks.x86_64-linux.rtimulib2 \
+            .#checks.x86_64-linux.pypilot-data \
+            .#checks.x86_64-linux.pypilot \
+            .#checks.x86_64-linux.signalk-server
+
+      - name: Integration test (x86_64)
+        run: nix build -L .#checks.x86_64-linux.integration
+
+      # Level 1 on aarch64 via binfmt (mostly substituted from the cache).
+      - name: Build packages (aarch64, emulated)
+        run: |
+          nix build -L \
+            .#checks.aarch64-linux.rtimulib2 \
+            .#checks.aarch64-linux.pypilot-data \
+            .#checks.aarch64-linux.pypilot \
+            .#checks.aarch64-linux.signalk-server

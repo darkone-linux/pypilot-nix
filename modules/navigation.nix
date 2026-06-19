@@ -2,9 +2,13 @@
 #
 # Single entry point: importing this module and setting
 # `services.navigation.enable = true` pulls in the hardware buses, the
-# pypilot/signalk/opencpn services and the GPS plumbing (udev symlinks + gpsd),
-# and makes the flake's custom packages available through an overlay. The
-# individual services are still toggled via their own `enable` options.
+# pypilot/signalk/opencpn services and the GPS plumbing (udev symlinks + gpsd).
+# The individual services are still toggled via their own `enable` options.
+#
+# The custom packages (pkgs.pypilot, …) come from the flake overlay, applied by
+# hosts/common.nix — or by the consumer when importing this module standalone.
+# (A module must not set nixpkgs.overlays itself: it breaks pinned-pkgs setups
+# such as the NixOS test framework.)
 
 { config, lib, ... }:
 
@@ -92,10 +96,6 @@ in
   };
 
   config = mkIf cfg.enable {
-
-    # Expose the flake's custom marine packages so the service modules'
-    # `package` defaults (pkgs.pypilot, pkgs.signalk-server, …) resolve.
-    nixpkgs.overlays = [ (final: _prev: import ../pkgs final) ];
 
     # GPS served by gpsd, feeding signalk and the system clock.
     services.gpsd = mkIf cfg.gps.enable {

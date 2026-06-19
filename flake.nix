@@ -53,6 +53,16 @@
         }
       )) { aarch64-linux = sdImages; };
 
+      # Level 1 (package builds + their import/smoke checks) and level 2A (VM
+      # integration test) — run by `nix flake check`.
+      checks = forAllSystems (
+        pkgs:
+        (navPackages pkgs)
+        // {
+          integration = import ./tests/integration.nix { inherit pkgs; };
+        }
+      );
+
       devShells = forAllSystems (pkgs: {
         default = pkgs.mkShell {
 
@@ -114,6 +124,14 @@
           system = "aarch64-linux";
           modules = [ ./hosts/lab-vm/configuration.nix ];
         };
+      };
+
+      # Run the persistent aarch64 lab VM (level 2B). Needs an aarch64-capable
+      # host (native ARM or binfmt full-system emulation); update it afterwards
+      # with `nixos-rebuild switch --flake .#lab-vm --target-host …`.
+      apps.aarch64-linux.lab-vm = {
+        type = "app";
+        program = "${self.nixosConfigurations.lab-vm.config.system.build.vm}/bin/run-lab-vm-vm";
       };
     };
 }

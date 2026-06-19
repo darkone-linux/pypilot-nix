@@ -64,7 +64,8 @@ nixos-rebuild switch \
   --build-host localhost
 ```
 
-For automatic rollback on failure, use `deploy-rs`:
+For automatic rollback on failure, use `deploy-rs` (add the `deploy-rs` flake
+input first — not yet wired here):
 
 ```shell
 deploy .#<host>
@@ -72,7 +73,8 @@ deploy .#<host>
 
 ### Quick lab VM
 
-An aarch64 VM for offline development:
+An aarch64 VM for offline development (run on an aarch64 host, or x86_64 with
+binfmt full-system emulation):
 
 ```shell
 nix run .#lab-vm
