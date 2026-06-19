@@ -1,0 +1,10 @@
+# treefmt config — discovered by `just format`.
+
+[formatter.nix]
+command = "nixfmt"
+includes = ["*.nix"]
+
+[formatter.shell]
+command = "shfmt"
+options = ["-w", "-s", "-i", "2"]
+includes = ["*.sh"]
