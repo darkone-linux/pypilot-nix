@@ -41,16 +41,16 @@ builder, or an x86_64 host with `binfmt` emulation; the `nix-community` cache
 avoids recompiling.
 
 ```shell
-# Build the SD image (e.g. for banc-rpi4)
-just sd-image banc-rpi4
-# or: nix build .#packages.aarch64-linux.banc-rpi4-sdImage -o result-banc-rpi4
+# Build the SD image (e.g. for lab-rpi4)
+just sd-image lab-rpi4
+# or: nix build .#packages.aarch64-linux.lab-rpi4-sdImage -o result-lab-rpi4
 
 # Flash to SD card (the image is zstd-compressed)
-zstd -dc result-banc-rpi4/sd-image/*.img.zst \
+zstd -dc result-lab-rpi4/sd-image/*.img.zst \
   | sudo dd of=/dev/sdX bs=4M status=progress conv=fsync
 ```
 
-SD-image hosts: `banc-rpi4`, `banc-rpi5`, `navpi`. The `lab-vm` runs as a VM
+SD-image hosts: `navpi`, `lab-rpi4`, `lab-rpi5`. The `lab-vm` runs as a VM
 (see below).
 
 ### Iterative updates

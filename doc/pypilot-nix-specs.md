@@ -55,11 +55,12 @@ flake.nix                       # nixosConfigurations + checks.<system> + deploy
 │       └── sample.nmea         # Flux NMEA simulé pour gpsfake
 └── hosts/
     ├── common.nix              # Config partagée par tous les hôtes
+    ├── rpi.nix                 # Base RPi partagée (image SD + nom de fichier)
     ├── navpi/                  # Production : RPi à bord
     │   └── configuration.nix
-    ├── banc-rpi4/              # Banc matériel RPi 4
+    ├── lab-rpi4/               # Lab matériel RPi 4
     │   └── configuration.nix
-    ├── banc-rpi5/              # Banc matériel RPi 5
+    ├── lab-rpi5/               # Lab matériel RPi 5
     │   └── configuration.nix
     └── lab-vm/                 # Lab VM aarch64 persistant (niveau 2 mode B)
         └── configuration.nix
@@ -70,11 +71,13 @@ Tous les hôtes sont déclarés comme `nixosConfigurations` distincts dans le fl
 ```nix
 # flake.nix (extrait)
 nixosConfigurations = {
-  navpi      = mkHost { system = "aarch64-linux"; hw = "macarthur-hat"; modules = [ ./hosts/navpi ]; };
-  banc-rpi4  = mkHost { system = "aarch64-linux"; hw = "pypilot-hat";   modules = [ ./hosts/banc-rpi4 ]; };
-  banc-rpi5  = mkHost { system = "aarch64-linux"; hw = "macarthur-hat"; modules = [ ./hosts/banc-rpi5 ]; };
-  lab-vm     = mkHost { system = "aarch64-linux"; hw = null;            modules = [ ./hosts/lab-vm ]; };
+  navpi    = mkHost { system = "aarch64-linux"; modules = [ ./hosts/navpi/configuration.nix ]; };
+  lab-rpi4 = mkHost { system = "aarch64-linux"; modules = [ ./hosts/lab-rpi4/configuration.nix ]; };
+  lab-rpi5 = mkHost { system = "aarch64-linux"; modules = [ ./hosts/lab-rpi5/configuration.nix ]; };
+  lab-vm   = mkHost { system = "aarch64-linux"; modules = [ ./hosts/lab-vm/configuration.nix ]; };
 };
+# Chaque hôte choisit son HAT via services.navigation.hardware dans son
+# propre configuration.nix (le paramètre hw a été retiré de mkHost).
 ```
 
 ---
@@ -256,7 +259,7 @@ Les données de calibration IMU sont écrites au runtime. Elles vivent dans `Sta
 
 9. `modules/navigation.nix` — module principal qui orchestre tout
 10. `modules/gps-time.nix` — synchro horloge GPS via chrony (hors ligne)
-11. `hosts/common.nix` + déclaration des `nixosConfigurations` (navpi, banc-rpi4, banc-rpi5, lab-vm)
+11. `hosts/common.nix` + déclaration des `nixosConfigurations` (navpi, lab-rpi4, lab-rpi5, lab-vm)
 12. Génération des SD images par hôte + procédure de bootstrap/flash documentée
 
 ### Phase 5 — Tests, déploiement & CI
@@ -265,7 +268,7 @@ Les données de calibration IMU sont écrites au runtime. Elles vivent dans `Sta
 14. `tests/integration.nix` — test d'intégration VM aarch64 avec GPS simulé (niveau 2A)
 15. `hosts/lab-vm/` — lab VM aarch64 persistant + workflow `nixos-rebuild --target-host` (niveau 2B)
 16. Pipeline CI (`nix flake check` avec binfmt aarch64, idéalement runner natif ARM)
-17. Configuration deploy-rs (banc-rpi4, banc-rpi5) + `tests/hardware-checks.sh` (niveau 3)
+17. Configuration deploy-rs (lab-rpi4, lab-rpi5) + `tests/hardware-checks.sh` (niveau 3)
 
 ### Phase 6 — Logiciels complémentaires (futur)
 
@@ -398,7 +401,7 @@ Le flake génère une image SD bootable par hôte, via `nvmd/nixos-raspberrypi` 
 ```bash
 # Construire l'image SD pour le banc RPi4 (depuis un host avec binfmt aarch64,
 # ou directement sur un Pi, ou via cache binaire)
-nix build .#nixosConfigurations.banc-rpi4.config.system.build.sdImage
+nix build .#nixosConfigurations.lab-rpi4.config.system.build.sdImage
 
 # Flasher sur la carte SD
 sudo dd if=result/sd-image/*.img of=/dev/sdX bs=4M status=progress conv=fsync
@@ -413,8 +416,8 @@ Une fois le Pi démarré et joignable, tout passe en déclaratif pur, sans jamai
 ```bash
 # Build local (avec binfmt) + push de la closure + activation distante
 nixos-rebuild switch \
-  --flake .#banc-rpi4 \
-  --target-host root@banc-rpi4.local \
+  --flake .#lab-rpi4 \
+  --target-host root@lab-rpi4.local \
   --build-host localhost
 ```
 
@@ -425,18 +428,18 @@ La gestion de la partition firmware (`/boot/firmware`, `config.txt`, overlays DT
 Pour un banc distant qu'on ne veut pas risquer de rendre injoignable, **deploy-rs** ajoute un rollback automatique si le healthcheck post-activation échoue :
 
 ```nix
-deploy.nodes.banc-rpi4 = {
-  hostname = "banc-rpi4.local";
+deploy.nodes.lab-rpi4 = {
+  hostname = "lab-rpi4.local";
   profiles.system = {
     sshUser = "root";
     path = deploy-rs.lib.aarch64-linux.activate.nixos
-             self.nixosConfigurations.banc-rpi4;
+             self.nixosConfigurations.lab-rpi4;
   };
 };
 ```
 
 ```bash
-deploy .#banc-rpi4   # rollback auto si la machine ne confirme pas l'activation
+deploy .#lab-rpi4   # rollback auto si la machine ne confirme pas l'activation
 ```
 
 Pour le **lab VM persistant** (niveau 2, mode B), c'est exactement la même mécanique : la VM est un hôte déclaré dans le flake, mis à jour via `nixos-rebuild --target-host` ou deploy-rs.
@@ -450,7 +453,7 @@ Pour le **lab VM persistant** (niveau 2, mode B), c'est exactement la même méc
 │   │    ├─ Niveau 1 : tests unitaires des packages (aarch64) │
 │   │    └─ Niveau 2A (optionnel) : intégration VM aarch64    │
 │   └─ déploiement banc → VALIDATION PRINCIPALE               │
-│        deploy .#banc-rpi4 / .#banc-rpi5                     │
+│        deploy .#lab-rpi4 / .#lab-rpi5                       │
 │        └─ Niveau 3 : hardware-checks.sh via SSH             │
 └─────────────────────────────────────────────────────────────┘
 

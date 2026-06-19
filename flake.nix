@@ -18,29 +18,24 @@
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
       navPackages = pkgs: import ./pkgs pkgs;
 
-      # A NixOS host: shared base + selected HAT + per-host modules. `hw` is the
-      # HAT passed to services.navigation.hardware (null for the no-HAT lab VM).
+      # A NixOS host: shared base + per-host modules. Each host picks its HAT
+      # via services.navigation.hardware in its own configuration.nix.
       mkHost =
         {
           system,
-          hw,
           modules,
         }:
         nixpkgs.lib.nixosSystem {
           inherit system;
-          modules = [
-            ./hosts/common.nix
-            { services.navigation.hardware = hw; }
-          ]
-          ++ modules;
+          modules = [ ./hosts/common.nix ] ++ modules;
         };
 
       # Per-host bootable SD images (aarch64), keyed `<host>-sdImage`. Only the
       # Raspberry Pi hosts produce one (the lab VM boots no SD card).
       rpiHosts = [
         "navpi"
-        "banc-rpi4"
-        "banc-rpi5"
+        "lab-rpi4"
+        "lab-rpi5"
       ];
       sdImages = builtins.listToAttrs (
         map (name: {
@@ -102,25 +97,21 @@
       nixosConfigurations = {
         navpi = mkHost {
           system = "aarch64-linux";
-          hw = "macarthur-hat";
           modules = [ ./hosts/navpi/configuration.nix ];
         };
 
-        banc-rpi4 = mkHost {
+        lab-rpi4 = mkHost {
           system = "aarch64-linux";
-          hw = "pypilot-hat";
-          modules = [ ./hosts/banc-rpi4/configuration.nix ];
+          modules = [ ./hosts/lab-rpi4/configuration.nix ];
         };
 
-        banc-rpi5 = mkHost {
+        lab-rpi5 = mkHost {
           system = "aarch64-linux";
-          hw = "macarthur-hat";
-          modules = [ ./hosts/banc-rpi5/configuration.nix ];
+          modules = [ ./hosts/lab-rpi5/configuration.nix ];
         };
 
         lab-vm = mkHost {
           system = "aarch64-linux";
-          hw = null;
           modules = [ ./hosts/lab-vm/configuration.nix ];
         };
       };
