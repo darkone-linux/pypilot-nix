@@ -7,6 +7,12 @@
 
 { lib, pkgs, ... }:
 
+let
+  # Admin deploy key (gponcon@gmail.com): key-based SSH + trusted closure push.
+  deployKeys = [
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEKerVgYq/5RlpOPvDVBTHNoY3AM7NLJ9BBvWvW9Us2h gponcon@gmail.com"
+  ];
+in
 {
   imports = [ ../modules/navigation.nix ];
 
@@ -37,12 +43,13 @@
     extraGroups = [ "wheel" ];
     initialPassword = "NixPypilot";
 
-    # Deploy key (gponcon@gmail.com): enables key-based `nixos-rebuild
-    # --target-host skipper@…` without ssh-copy-id.
-    openssh.authorizedKeys.keys = [
-      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEKerVgYq/5RlpOPvDVBTHNoY3AM7NLJ9BBvWvW9Us2h gponcon@gmail.com"
-    ];
+    # Key-based `nixos-rebuild --target-host skipper@…` without ssh-copy-id.
+    openssh.authorizedKeys.keys = deployKeys;
   };
+
+  # Same key for root: `--target-host root@…` works (root is always a trusted
+  # Nix user — the path used to bootstrap trusted-users below).
+  users.users.root.openssh.authorizedKeys.keys = deployKeys;
 
   # Passwordless sudo for wheel so `nixos-rebuild --use-remote-sudo` activates
   # without an interactive prompt.
@@ -69,10 +76,17 @@
     };
   };
 
-  nix.settings.experimental-features = [
-    "nix-command"
-    "flakes"
-  ];
+  nix.settings = {
+    experimental-features = [
+      "nix-command"
+      "flakes"
+    ];
+
+    # Wheel admins may push unsigned closures over `nixos-rebuild
+    # --target-host` (deploys come from a trusted workstation). root is trusted
+    # by default; add wheel.
+    trusted-users = [ "@wheel" ];
+  };
 
   # GPS disciplines the clock at sea; default the box itself to UTC.
   time.timeZone = lib.mkDefault "UTC";
