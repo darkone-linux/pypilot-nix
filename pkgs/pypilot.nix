@@ -48,7 +48,13 @@ buildPythonPackage rec {
 
   # Keep the control head idle when its LCD is disabled (driver "none"); without
   # this the screen subprocess busy-loops a core. See doc/probleme-hat-lcd.md.
-  patches = [ ./pypilot-headless-lcd.patch ];
+  # Use the HTTP status code (r.status_code) instead of the JSON body's
+  # 'statusCode' field in request_access, and handle HTTP 404 (security
+  # disabled on the server) by skipping token-based auth.
+  patches = [
+    ./pypilot-headless-lcd.patch
+    ./pypilot-signalk-access.patch
+  ];
 
   pyproject = true;
   build-system = [ setuptools ];
