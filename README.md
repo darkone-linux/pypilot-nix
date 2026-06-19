@@ -6,96 +6,137 @@
 [![Platform](https://img.shields.io/badge/platform-aarch64--linux-lightgrey)](.)
 [![Built with Nix](https://img.shields.io/badge/Built%20with-Nix-5277C3.svg?logo=nixos&logoColor=white)](https://nixos.org)
 
-Declarative NixOS distribution for embedded marine navigation on Raspberry Pi.
+**pypilot-nix** is a declarative NixOS distribution for embedded marine
+navigation on Raspberry Pi — a reproducible, version-controlled equivalent of
+OpenPlotter.
+
+The whole autopilot / data-hub / chartplotter stack comes up from a single
+NixOS option, builds into a bootable SD image per boat, and updates over SSH
+like any other NixOS machine. It targets Raspberry Pi 4 (main) and Pi 5
+(experimental) on `aarch64-linux`, with the **Pypilot HAT** or the
+**MacArthur HAT**.
 
 ## Features
 
-- **Single entry point** — enable `services.navigation` and get the whole
-  marine stack wired: autopilot, data hub, chartplotter, GPS time sync.
-- **pypilot** — autopilot server with IMU fusion and motor control
-  (ICM20948, MPU9250).
-- **Signal K server** — marine data hub on `:3000`, feeding NMEA over
-  TCP `:10110`, auto-discovered by pypilot via zeroconf.
-- **OpenCPN** — chartplotter pre-configured with the pypilot plugin for
-  route following.
-- **GPS time synchronisation** — `gpsd` + `chrony` clocks the system from GPS
-  without Internet (PPS support optional).
-- **Hardware HATs** — udev rules, I2C, UART and device-tree overlays for
-  **Pypilot HAT** and **MacArthur HAT**.
-- **Declarative udev** — stable `/dev/gps0`, `/dev/pypilot_motor` symlinks
-  from USB vendor/product IDs.
-- **Rollback-safe deploys** — `nixos-rebuild` over SSH or
-  [`deploy-rs`](https://github.com/serokell/deploy-rs) with automatic
-  rollback.
-- **Headless-by-default** — SSH, Avahi (`.local`), admin account (`skipper`),
-  ready to run on a Pi without a display.
+- **Single entry point**: `services.navigation.enable = true` wires the whole stack.
+- **pypilot**: autopilot daemon with RTIMULib IMU fusion and motor control.
+- **Signal K**: marine data hub on port 3000, NMEA0183 over TCP 10110.
+- **OpenCPN**: chartplotter with generated config and a pypilot plugin slot.
+- **Offline GPS clock**: `gpsd` and `chrony` set the time without Internet.
+- **Hardware HATs**: I2C, UART and SPI buses, kernel modules and device-tree overlays.
+- **Stable devices**: udev symlinks `/dev/gps0` and `/dev/pypilot_motor` from USB IDs.
+- **Per-host SD images**: a named `pypilot-nix-<host>.img.zst` for each machine.
+- **Tested in CI**: package import checks plus a NixOS VM integration test.
+- **Headless**: SSH, mDNS `.local`, a `skipper` admin account, no display needed.
+
+## Configuration
+
+`hosts/common.nix` brings the stack up (`services.navigation.enable`) with the
+headless services on by default. A per-host file then only sets the hostname and
+the HAT:
+
+```nix
+# hosts/navpi/configuration.nix
+{ ... }:
+{
+  imports = [ ../rpi.nix ];
+
+  networking.hostName = "navpi";
+
+  # HAT fitted on the Pi — pick one:
+  services.navigation.hardware = "pypilot-hat";
+  # services.navigation.hardware = "macarthur-hat";
+
+  # Reach Signal K from the boat network:
+  services.navigation.signalk.openFirewall = true;
+
+  # Stable /dev names from `lsusb` IDs:
+  # services.navigation.gps.vendorId = "1546";
+  # services.navigation.gps.productId = "01a7";
+}
+```
+
+Hosts shipped in the flake:
+
+| Host       | Target           | HAT           | Role         |
+| ---------- | ---------------- | ------------- | ------------ |
+| `navpi`    | Raspberry Pi 4   | Pypilot HAT   | Production   |
+| `lab-rpi4` | Raspberry Pi 4   | Pypilot HAT   | Lab / bench  |
+| `lab-rpi5` | Raspberry Pi 5 ¹ | MacArthur HAT | Lab / bench  |
+| `lab-vm`   | aarch64 VM       | none          | Emulated lab |
+
+¹ Pi 5 boot support is experimental (generic aarch64 image).
+
+Add a boat or bench by declaring one more `nixosConfigurations` entry in
+`flake.nix` and dropping a `hosts/<host>/configuration.nix`; the modules are
+shared, so no logic is duplicated. The full option set lives in
+`modules/navigation.nix`.
+
+## Build the SD image
+
+SD images are `aarch64`, so build them on a native ARM machine, a remote
+builder, or an x86_64 host with `binfmt` emulation. The `nix-community` cache
+avoids recompiling the bulk of the system.
+
+```shell
+just sd-image navpi
+# or: nix build .#packages.aarch64-linux.navpi-sdImage -o result-navpi
+```
+
+The result is a compressed image:
+
+```
+result-navpi/sd-image/pypilot-nix-navpi.img.zst
+```
+
+SD-image hosts: `navpi`, `lab-rpi4`, `lab-rpi5`. The `lab-vm` runs as a VM (see
+below).
 
 ## Installation
 
-### Prerequisites
+### 1. Flash the SD card
 
-- Raspberry Pi 4 or 5.
-- MicroSD card (or USB boot medium).
-- A Nix-enabled host (for the initial build, or use the binary cache).
-
-### Bootstrap (first time)
-
-Generate and flash a bootable SD image for your hardware:
-
-Building targets `aarch64`, so build on a native ARM machine, a remote
-builder, or an x86_64 host with `binfmt` emulation; the `nix-community` cache
-avoids recompiling.
+The image is zstd-compressed; decompress and write in one pipe (double-check the
+target — the wrong device wipes a disk):
 
 ```shell
-# Build the SD image (e.g. for lab-rpi4)
-just sd-image lab-rpi4
-# or: nix build .#packages.aarch64-linux.lab-rpi4-sdImage -o result-lab-rpi4
-
-# Flash to SD card (the image is zstd-compressed)
-zstd -dc result-lab-rpi4/sd-image/*.img.zst \
+zstd -dc result-navpi/sd-image/*.img.zst \
   | sudo dd of=/dev/sdX bs=4M status=progress conv=fsync
 ```
 
-SD-image hosts: `navpi`, `lab-rpi4`, `lab-rpi5`. The `lab-vm` runs as a VM
-(see below).
+### 2. First boot
 
-### Iterative updates
+The image ships with SSH and mDNS enabled, reachable at `<host>.local`:
 
-Once the Pi is booted and reachable on the network:
+- user `skipper`, password `NixPypilot` (bootstrap default — change it)
+- for passwordless deploys, add your key to
+  `users.users.skipper.openssh.authorizedKeys.keys` and rebuild
+
+### 3. Iterate over SSH
+
+No re-flashing afterwards: build locally and push the closure.
 
 ```shell
 nixos-rebuild switch \
-  --flake .#<host> \
-  --target-host root@<host>.local \
+  --flake .#navpi \
+  --target-host skipper@navpi.local --use-remote-sudo \
   --build-host localhost
 ```
 
-For automatic rollback on failure, use `deploy-rs` (add the `deploy-rs` flake
-input first — not yet wired here):
+For automatic rollback on failure, add the `deploy-rs` input and use
+`deploy .#<host>` (not wired here yet).
 
-```shell
-deploy .#<host>
-```
+### Lab VM (no hardware)
 
-### Quick lab VM
-
-An aarch64 VM for offline development (run on an aarch64 host, or x86_64 with
-binfmt full-system emulation):
+Run the persistent aarch64 lab VM (on an aarch64 host, or x86_64 with binfmt
+full-system emulation), then update it like a real Pi:
 
 ```shell
 nix run .#lab-vm
+nixos-rebuild switch --flake .#lab-vm --target-host skipper@lab-vm.local --use-remote-sudo
 ```
 
-Then push updates just like a real Pi:
+## Documentation
 
-```shell
-nixos-rebuild switch \
-  --flake .#lab-vm \
-  --target-host root@lab-vm.local \
-  --build-host localhost
-```
-
-## Project status
-
-Early development — see [specifications](doc/pypilot-nix-specs.md) for the
-full implementation plan.
+See [`doc/pypilot-nix-specs.md`](doc/pypilot-nix-specs.md) for the full design,
+the data-flow plumbing and the test strategy.
