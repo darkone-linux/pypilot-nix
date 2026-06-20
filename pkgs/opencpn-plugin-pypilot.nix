@@ -81,8 +81,8 @@ stdenv.mkDerivation (_finalAttrs: {
     find . -name "libpypilot_pi.so" -exec cp -t $out/lib/opencpn {} +
 
     # Data files (boat SVGs, toolbar icon) live in the source root.
-    if [ -d "$NIX_BUILD_TOP/source/data" ]; then
-      cp -r "$NIX_BUILD_TOP/source/data"/* $out/share/opencpn/plugins/pypilot/
+    if [ -d "$src/data" ]; then
+      cp -r "$src/data"/* $out/share/opencpn/plugins/pypilot/
     fi
 
     runHook postInstall

@@ -4,7 +4,7 @@
 # different boot chain and is experimental here (no raspberry-pi-nix input).
 # Booting must be validated on real hardware.
 
-{ ... }:
+{ pkgs, ... }:
 
 {
   imports = [ ../rpi.nix ];

@@ -1,6 +1,6 @@
 # navpi — production host aboard. Raspberry Pi 4 by default.
 
-{ ... }:
+{ pkgs, ... }:
 
 {
   imports = [ ../rpi.nix ];
