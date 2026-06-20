@@ -1,16 +1,16 @@
 # desktop.nix — on-board graphical session (GNOME or labwc Wayland).
 #
-# A boat chartplotter needs a lightweight, always-on desktop.
-# Supports two paths:
+# A boat chartplotter needs an always-on desktop. Two paths:
 #
 #   gnome   — Full GNOME desktop (GDM autologin, GNOME Shell, Wayland).
-#             Best app compat, built-in panel, heavier on RAM.
-#   labwc   — Wayland stacking compositor (RPi OS direction), waybar panel.
-#             Lightweight, runs OpenCPN through Xwayland.
+#             Best app compat, built-in panel. App set trimmed and dock pinned
+#             to the navigation apps.
+#   labwc   — Minimal Wayland stacking compositor (RPi OS direction), waybar
+#             panel. Lighter, runs OpenCPN through Xwayland.
 #
-# No matter the path, the screen must NEVER blank or sleep, so `alwaysOn`
-# masks every suspend path, tells logind to ignore idle/lid, stops console
-# blanking and (on X11) runs xset -dpms.
+# Either way the screen must NEVER blank or sleep, so `alwaysOn` masks every
+# suspend path, tells logind to ignore idle/lid, stops console blanking, and
+# (GNOME) locks the screensaver/idle keys off via dconf.
 
 {
   config,
@@ -33,6 +33,25 @@ let
     concatStringsSep
     optional
     ;
+
+  # Hide an installed app from the GNOME app grid without uninstalling it:
+  # a NoDisplay launcher at the same path, higher priority so it wins the
+  # profile collision and shadows the real one. Harmless if the app is absent.
+  hideApp =
+    id:
+    lib.hiPrio (
+      pkgs.writeTextFile {
+        name = "hide-${id}";
+        destination = "/share/applications/${id}.desktop";
+        text = ''
+          [Desktop Entry]
+          Type=Application
+          Name=${id}
+          NoDisplay=true
+          Exec=true
+        '';
+      }
+    );
 in
 {
   options.services.navigation.desktop = {
@@ -100,6 +119,7 @@ in
         pkgs.waybar
         pkgs.foot
         pkgs.xwayland
+        pkgs.pcmanfm
       ];
 
       # Autologin into the compositor at boot; agreety covers a manual re-login.
@@ -122,36 +142,57 @@ in
     (mkIf (cfg.compositor == "gnome") {
       services.desktopManager.gnome.enable = true;
       services.displayManager.gdm.enable = true;
-      services.displayManager.autoLogin.enable = true;
-      services.displayManager.autoLogin.user = cfg.user;
+      services.displayManager.autoLogin = {
+        enable = true;
+        user = cfg.user;
+      };
 
-      # Always-on GNOME settings via dconf (no screen blanking, no lock).
-      programs.dconf.enable = true;
-      environment.etc = {
-        "dconf/db/local".text = ''
-          [org/gnome/desktop/session]
-          idle-delay=uint32 0
+      # Trim GNOME's default app set to a chartplotter-relevant minimum.
+      environment.gnome.excludePackages = with pkgs; [
+        gnome-tour
+        gnome-user-docs
+        yelp
+        epiphany
+        geary
+        totem
+        gnome-music
+        gnome-maps
+        gnome-weather
+        gnome-contacts
+        gnome-calendar
+        simple-scan
+        gnome-software
+      ];
 
-          [org/gnome/desktop/screensaver]
-          lock-enabled=false
+      # No NixOS manual / info docs on an appliance.
+      documentation.nixos.enable = false;
 
-          [org/gnome/desktop/lockdown]
-          disable-lock-screen=true
+      # Dock favorites and always-on, via dconf system defaults.
+      programs.dconf.profiles.user.databases = [
+        # Pinned launchers (default only — the skipper may re-pin).
+        {
+          lockAll = false;
+          settings."org/gnome/shell".favorite-apps = [
+            "opencpn.desktop"
+            "xygrib.desktop"
+            "org.gnome.Nautilus.desktop"
+          ];
+        }
+      ]
+      ++ optional cfg.alwaysOn {
+        # Screen always lit, enforced (locked) — mandatory aboard.
+        lockAll = true;
+        settings = {
+          "org/gnome/desktop/session"."idle-delay" = lib.gvariant.mkUint32 0;
+          "org/gnome/desktop/screensaver".lock-enabled = false;
+          "org/gnome/desktop/lockdown".disable-lock-screen = true;
+          "org/gnome/settings-daemon/plugins/power".sleep-inactive-ac-type = "nothing";
+          "org/gnome/settings-daemon/plugins/power".sleep-inactive-battery-type = "nothing";
+        };
+      };
 
-          [org/gnome/settings-daemon/plugins/power]
-          sleep-inactive-ac-type='nothing'
-          sleep-inactive-battery-type='nothing'
-        '';
-        "dconf/db/local.d/locks/always-on".text = ''
-          /org/gnome/desktop/session/idle-delay
-          /org/gnome/desktop/screensaver/lock-enabled
-          /org/gnome/desktop/lockdown/disable-lock-screen
-          /org/gnome/settings-daemon/plugins/power/sleep-inactive-ac-type
-          /org/gnome/settings-daemon/plugins/power/sleep-inactive-battery-type
-        '';
-      }
-      # GNOME autostart for OpenCPN.
-      // optionalAttrs (opencpn.enable && cfg.autostartOpencpn) {
+      # OpenCPN autostart entry (only when requested).
+      environment.etc = optionalAttrs (opencpn.enable && cfg.autostartOpencpn) {
         "xdg/autostart/opencpn.desktop".text = ''
           [Desktop Entry]
           Type=Application
@@ -161,8 +202,14 @@ in
         '';
       };
 
-      environment.systemPackages = with pkgs; [
-        gnome-terminal
+      # Hide a few installed-but-noisy launchers from the grid (kept reachable
+      # as default handlers, e.g. evince for PDFs).
+      environment.systemPackages = map hideApp [
+        "vim"
+        "gvim"
+        "org.gnome.Evince"
+        "org.gnome.Extensions"
+        "org.gnome.Settings"
       ];
     })
 
@@ -172,7 +219,7 @@ in
       services.navigation.opencpn.user = mkIf opencpn.enable (mkDefault cfg.user);
 
       environment.systemPackages = [
-        pkgs.pcmanfm
+        pkgs.xygrib
         pkgs.chromium
         pkgs.evince
         pkgs.vlc
