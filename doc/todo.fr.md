@@ -31,9 +31,10 @@ Style télégraphique. `[x]` fait · `[~]` partiel · `[ ]` à faire.
 
 ## HAT / device-tree (DÉCISION ARCHI — mise de côté)
 
-Voir `doc/probleme-hat-lcd.md`. `raspberry-pi-nix` écarté (non maintenu > 1 an).
+Voir `doc/probleme-hat-lcd.md` et le comparatif `doc/comparatif-base-rpi.fr.md`.
+`raspberry-pi-nix` écarté (non maintenu > 1 an).
 
-- [ ] **Choisir une base RPi pérenne** : évaluer `nvmd/nixos-raspberrypi` (actif) ; ou tester le boot sans U-Boot (firmware → kernel direct, `config.txt` maîtrise le DTB) sur l'image générique.
+- [ ] **Choisir une base RPi pérenne** : comparatif fait → `nvmd/nixos-raspberrypi` (firmware vendor, DTBs à `__symbols__`, `config.txt` appliqué) débloque SPI ; `nixos-hardware` ne résout PAS (mêmes overlays non appliqués, issue #760). Reste à trancher : migrer vers nixos-raspberrypi (dégèle `flake.lock`, re-flash) ou tester le boot firmware→kernel direct sur l'image générique.
 - [ ] **SPI / LCD** : dépend de la décision ci-dessus (overlay `&spi` déjà prêt, inerte tant que le DT ne s'applique pas).
 - [ ] **`disable-bt` (motor controller sur ttyAMA0)** : même blocage DT que SPI → lié à la même décision.
 - [ ] **`ugfx` sans `spiscreen`** : corriger le build pypilot (pilote LCD SPI) une fois SPI fonctionnel.
