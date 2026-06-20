@@ -1,6 +1,27 @@
 # Problème : écran LCD du HAT pypilot (control head) — investigation
 
-Style télégraphique. Banc : `lab-rpi4` (Raspberry Pi 4, HAT pypilot), image SD générique NixOS aarch64.
+Style télégraphique. Banc : `lab-rpi4` (Raspberry Pi 4, HAT pypilot).
+
+## RÉSOLU (migration nixos-raspberrypi) — à valider au banc
+
+Les deux causes profondes (SPI non appliqué, `ugfx` sans `spiscreen`) sont
+levées côté build. Reste la validation matérielle (flash + banc).
+
+- **Bascule sur `nvmd/nixos-raspberrypi`** (firmware vendor) — voir `flake.nix`,
+  `comparatif-base-rpi.fr.md`. Les DTBs vendor ont `__symbols__` et `config.txt`
+  s'applique vraiment.
+- **SPI/I2C/disable-bt via `config.txt`** : `pypilot-hat.nix` pose
+  `hardware.raspberry-pi.config.all` (`base-dt-params.spi="on"`,
+  `i2c_arm="on"`, `dt-overlays.disable-bt`) → `/dev/spidev0.0` attendu.
+- **`ugfx.spiscreen` désormais buildé** : sous nixpkgs 25.11, `pkg-config
+  --cflags libgpiod` réussit au build → `-DGPIOD_VERSION_MAJOR` défini → la
+  classe `spiscreen` (sous `#ifdef`) est exposée. Vérifié :
+  `hasattr(ugfx,'spiscreen') == True`.
+- **Driver LCD réactivé** : `pypilot.controlHead.lcd = "jlx12864"` (défaut) →
+  `pypilot_hat jlx12864`.
+
+Ce qui suit est l'investigation d'origine (image générique), conservée pour
+mémoire.
 
 ## Symptôme
 

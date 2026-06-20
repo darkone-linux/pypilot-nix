@@ -16,7 +16,7 @@ Style télégraphique. `[x]` fait · `[~]` partiel · `[ ]` à faire.
 - [x] Ne pas démarrer OpenCPN automatiquement (`desktop.autostartOpencpn = false`).
 - [x] Logs `journalctl` investigués (gpiod, renice, ugfx, SPI) → voir `probleme-hat-lcd.md`.
 - [ ] **Interface graphique — NON TRANCHÉE (point critique)**. Essais successifs : labwc (trop minimal, illisible), wayfire (abandonné), **GNOME** (déployé+redémarré : correct mais **trop lent sur Pi 4**). Piste retenue : DE léger **XFCE / LXDE / LXQt** (bien connus) — MAIS inutilisables visuellement sans **thème complet préconfiguré** (GTK + icônes + curseur + fond + config panel). À faire : choisir le DE, embarquer un thème propre déclarativement, panel + menu + favoris navigation (opencpn, xygrib), auto-login, always-on. Profiler la lenteur GNOME (KMS/vc4, accel GL) en parallèle.
-- [x] **Control head pypilot headless-safe** : LCD désactivé (option `pypilot.controlHead.lcd = "none"` → `pypilot_hat none`). Plus de crash ; keypad/IR/RF actifs (processus principal, indépendant du LCD) → appairage RF 433 possible via l'UI web. Patch `pypilot-headless-lcd.patch` : sous-processus LCD en veille au lieu de boucler. Repasser à `"jlx12864"` quand SPI fonctionnera.
+- [x] **Control head pypilot** : LCD **réactivé** (`pypilot.controlHead.lcd = "jlx12864"` → `pypilot_hat jlx12864`) suite à la migration nixos-raspberrypi (SPI ON + `ugfx.spiscreen` buildé). Option `"none"` toujours dispo (headless). Patch `pypilot-headless-lcd.patch` conservé (utile si `none`). **À valider au banc** : affichage réel + appairage RF 433.
 - [ ] **OpenCPN — plugin pypilot NE S'AFFICHE PAS au banc** : la liste des plugins est **toujours vide**. Donc problème plus profond que l'ABI. État : packagé (build OK : `libpypilot_pi.so` + data), câblé via `symlinkJoin` (`.desktop`+icône gardés), et OpenCPN 5.14 lit bien `OPENCPN_PLUGIN_DIRS` (`plugin_paths.cpp:157`). À diagnostiquer au banc :
   - liste « vide » = onglet **catalogue** (téléchargeable, vide hors-ligne) ou onglet **installés** ? Le plugin doit apparaître dans *installés*.
   - les plugins **fournis** par OpenCPN (grib/dashboard/wmm/chartdldr, dans `opencpn/lib/opencpn`) apparaissent-ils ? Si non → OpenCPN ne trouve aucun plugin (pas seulement le nôtre).
@@ -33,16 +33,18 @@ Style télégraphique. `[x]` fait · `[~]` partiel · `[ ]` à faire.
 - [ ] **Élaguer les paquets non essentiels** de l'image (build ISO long) : chromium/vlc/evince lourds en aarch64 émulé — rendre optionnels ou alléger la suite par défaut.
 - [ ] **OpenCPN — connexions préconfigurées** : lecture SignalK (:3000) + écriture pypilot (instructions pilote). Compléter `opencpn.conf` (sérialisation `DataConnections` à valider sur la version installée).
 
-## HAT / device-tree (DÉCISION ARCHI — mise de côté)
+## HAT / device-tree — MIGRÉ vers nixos-raspberrypi (à valider au banc)
 
 Voir `doc/probleme-hat-lcd.md` et le comparatif `doc/comparatif-base-rpi.fr.md`.
-`raspberry-pi-nix` écarté (non maintenu > 1 an).
+Bascule faite côté build (évalue + paquets buildent sous nixpkgs 25.11) ; reste
+le flash + validation matérielle.
 
-- [ ] **Choisir une base RPi pérenne** : comparatif fait → `nvmd/nixos-raspberrypi` (firmware vendor, DTBs à `__symbols__`, `config.txt` appliqué) débloque SPI ; `nixos-hardware` ne résout PAS (mêmes overlays non appliqués, issue #760). Reste à trancher : migrer vers nixos-raspberrypi (dégèle `flake.lock`, re-flash) ou tester le boot firmware→kernel direct sur l'image générique.
-- [ ] **SPI / LCD** : dépend de la décision ci-dessus (overlay `&spi` déjà prêt, inerte tant que le DT ne s'applique pas).
-- [ ] **`disable-bt` (motor controller sur ttyAMA0)** : même blocage DT que SPI → lié à la même décision.
-- [ ] **`ugfx` sans `spiscreen`** : corriger le build pypilot (pilote LCD SPI) une fois SPI fonctionnel.
-- [ ] **Nettoyer** la modif manuelle `config.txt` sur p1 (`dtparam=spi=on`, inerte) au prochain re-flash.
+- [x] **Base RPi pérenne** : migration `nvmd/nixos-raspberrypi` (firmware/kernel vendor). `flake.nix` : input ajouté, `nixpkgs` suit le leur (25.11), hôtes Pi via `nixos-raspberrypi.lib.nixosSystem` (board `raspberry-pi-4/5.{base,display-vc4}` + module `sd-image`). `hosts/rpi.nix` allégé (plus de `sd-image-aarch64` générique). `lab-vm` reste sur nixpkgs simple.
+- [x] **SPI / I2C / disable-bt via `config.txt`** : `pypilot-hat.nix` → `hardware.raspberry-pi.config.all` (`base-dt-params.spi/i2c_arm`, `dt-overlays.disable-bt`). Bloc gardé par `optionalAttrs` (option absente sur lab-vm).
+- [x] **`ugfx` `spiscreen`** : buildé sous 25.11 (pkg-config trouve libgpiod → `GPIOD_VERSION_MAJOR`). `hasattr(ugfx,'spiscreen')==True`.
+- [ ] **VALIDATION BANC** (re-flash image vendor) : `/dev/spidev0.0` présent, LCD affiche, `i2cdetect -y 1` voit l'IMU (0x68), ttyAMA0 libéré (moteur), appairage RF.
+- [~] **macarthur-hat** (lab-rpi5) : encore en `hardware.deviceTree.overlays` (évalue, mais à porter sur `config.txt` comme pypilot-hat quand on testera le Pi 5).
+- Obsolète : nettoyage `config.txt` sur p1 (l'image vendor est régénérée au flash).
 
 ## Reste de la spec (Phase 6 / validation)
 
