@@ -1,14 +1,14 @@
 # rpi.nix — shared Raspberry Pi base for every Pi host.
 #
-# Pulls in the generic aarch64 SD image (u-boot + extlinux), which applies the
-# device-tree overlays declared by the hardware modules, and names the image
-# per host.
+# The boot chain (vendor firmware, kernel, bootloader) and the SD-image builder
+# come from nixos-raspberrypi (board + sd-image modules wired in the flake), so
+# this file only carries Pi-wide tweaks. Device-tree needs (SPI/I2C/disable-bt)
+# are expressed per-HAT through `hardware.raspberry-pi.config` (config.txt).
 
-{ config, modulesPath, ... }:
+{ config, lib, ... }:
 
 {
-  imports = [ "${modulesPath}/installer/sd-card/sd-image-aarch64.nix" ];
-
-  # Image file named pypilot-nix-<host>-<version>-<system>.img.zst.
-  image.baseName = "pypilot-nix-${config.networking.hostName}";
+  # Name the produced image pypilot-nix-<host>-…; override the base module's
+  # default "nixos-image-rpi4-uboot".
+  image.baseName = lib.mkForce "pypilot-nix-${config.networking.hostName}";
 }

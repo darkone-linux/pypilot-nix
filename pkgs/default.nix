@@ -14,7 +14,15 @@ in
 {
   inherit rtimulib2 pypilot-data;
 
-  pypilot = py.callPackage ./pypilot.nix { inherit rtimulib2 pypilot-data; };
+  pypilot = py.callPackage ./pypilot.nix {
+    inherit rtimulib2 pypilot-data;
+
+    # `libgpiod` resolves to the python binding under py.callPackage; pin the C
+    # library (SWIG GPIO build) explicitly, and pass the binding as `gpiod`
+    # (importable as `gpiod`, libgpiod v2) for the HAT control head.
+    libgpiod = final.libgpiod;
+    gpiod = py.libgpiod;
+  };
 
   signalk-server = final.callPackage ./signalk-server.nix { };
 

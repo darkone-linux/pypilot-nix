@@ -2,11 +2,21 @@
   description = "pypilot-nix — declarative NixOS marine navigation distribution";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # Vendor-firmware Raspberry Pi base: real config.txt + device-tree overlays
+    # (DTBs ship __symbols__), so dtparam=spi/i2c and dtoverlay actually apply —
+    # what the generic SD image could not do. It pins its own nixpkgs; we follow
+    # it so the marine packages build against the very nixpkgs the Pi hosts use.
+    nixos-raspberrypi.url = "github:nvmd/nixos-raspberrypi";
+    nixpkgs.follows = "nixos-raspberrypi/nixpkgs";
   };
 
   outputs =
-    { self, nixpkgs, ... }:
+    {
+      self,
+      nixpkgs,
+      nixos-raspberrypi,
+      ...
+    }:
     let
 
       # Dev/build hosts: aarch64 is the deploy target, x86_64 for emulated builds.
@@ -27,15 +37,30 @@
       # outputs: pick the overlay's own attribute names out of the extended set.
       marinePackages = pkgs: nixpkgs.lib.getAttrs (builtins.attrNames (marineOverlay pkgs pkgs)) pkgs;
 
-      # A NixOS host: shared base + per-host modules. Each host picks its HAT
-      # via services.navigation.hardware in its own configuration.nix.
-      mkHost =
-        {
-          system,
-          modules,
-        }:
+      # A Raspberry Pi host on the vendor-firmware base. `board` is the list of
+      # nixos-raspberrypi board modules (rpi-4/5 base + display); common.nix and
+      # the sd-image builder are shared. Their nixosSystem brings the vendor
+      # nixpkgs, kernel, firmware and bootloader.
+      mkRpiHost =
+        { board, modules }:
+        nixos-raspberrypi.lib.nixosSystem {
+          specialArgs = { inherit nixos-raspberrypi; };
+          modules =
+            board
+            ++ [
+              nixos-raspberrypi.nixosModules.sd-image
+              ./hosts/common.nix
+            ]
+            ++ modules;
+        };
+
+      inherit (nixos-raspberrypi.nixosModules) raspberry-pi-4 raspberry-pi-5;
+
+      # Plain aarch64 NixOS host (the lab VM boots no Pi firmware).
+      mkVmHost =
+        { modules }:
         nixpkgs.lib.nixosSystem {
-          inherit system;
+          system = "aarch64-linux";
           modules = [ ./hosts/common.nix ] ++ modules;
         };
 
@@ -113,25 +138,34 @@
       };
 
       # All hosts share the navigation modules; add boats/benches here without
-      # duplicating logic.
+      # duplicating logic. Pi 4 helm/bench on the vendor base, Pi 5 bench, plus
+      # a plain aarch64 VM for emulated integration.
       nixosConfigurations = {
-        navpi = mkHost {
-          system = "aarch64-linux";
+        navpi = mkRpiHost {
+          board = [
+            raspberry-pi-4.base
+            raspberry-pi-4.display-vc4
+          ];
           modules = [ ./hosts/navpi/configuration.nix ];
         };
 
-        lab-rpi4 = mkHost {
-          system = "aarch64-linux";
+        lab-rpi4 = mkRpiHost {
+          board = [
+            raspberry-pi-4.base
+            raspberry-pi-4.display-vc4
+          ];
           modules = [ ./hosts/lab-rpi4/configuration.nix ];
         };
 
-        lab-rpi5 = mkHost {
-          system = "aarch64-linux";
+        lab-rpi5 = mkRpiHost {
+          board = [
+            raspberry-pi-5.base
+            raspberry-pi-5.display-vc4
+          ];
           modules = [ ./hosts/lab-rpi5/configuration.nix ];
         };
 
-        lab-vm = mkHost {
-          system = "aarch64-linux";
+        lab-vm = mkVmHost {
           modules = [ ./hosts/lab-vm/configuration.nix ];
         };
       };

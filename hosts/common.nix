@@ -91,5 +91,5 @@ in
   # GPS disciplines the clock at sea; default the box itself to UTC.
   time.timeZone = lib.mkDefault "UTC";
 
-  system.stateVersion = lib.mkDefault "26.11";
+  system.stateVersion = lib.mkDefault "25.11";
 }

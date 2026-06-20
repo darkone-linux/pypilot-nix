@@ -11,7 +11,7 @@
   cmake,
   pkg-config,
   gettext,
-  wxwidgets_3_2,
+  wxGTK32,
   libGLU,
   libGL,
 }:
@@ -50,7 +50,7 @@ stdenv.mkDerivation (_finalAttrs: {
   ];
 
   buildInputs = [
-    wxwidgets_3_2
+    wxGTK32
     libGLU
     libGL
   ];
