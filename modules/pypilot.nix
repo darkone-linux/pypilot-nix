@@ -105,13 +105,13 @@ in
         "ssd1309"
         "dg240160"
       ];
-      default = "none";
+      default = "jlx12864";
       description = ''
-        LCD driver passed to pypilot_hat. Kept at "none" (headless): the HAT's
-        SPI display needs a working device-tree, which the generic SD image does
-        not provide yet (see doc/probleme-hat-lcd.md). "none" skips screen init
-        so the control head stays up for keypad/IR/RF — the rest of the HAT.
-        Set to the panel model (e.g. "jlx12864") once SPI is functional.
+        LCD driver passed to pypilot_hat. The Pypilot HAT fits a JLX12864
+        (ST7565) on SPI0; the vendor firmware enables SPI (see pypilot-hat.nix)
+        and pypilot's ugfx ships the spiscreen driver, so the screen works.
+        Set to "none" for a headless control head (keypad/IR/RF only) if no LCD
+        is fitted.
       '';
     };
 
@@ -160,10 +160,9 @@ in
       }
     );
 
-    # Control head: drives the HAT's keypad and listens to the IR and 433 MHz RF
-    # receivers; this is what records the remote's codes when pairing. The LCD
-    # driver argument (default "none") disables the SPI screen, which would
-    # otherwise crash the whole process on the symbol-less device-tree.
+    # Control head: drives the HAT's LCD and keypad, and listens to the IR and
+    # 433 MHz RF receivers; this is what records the remote's codes when pairing.
+    # The LCD driver argument selects the panel (jlx12864) or "none" (headless).
     systemd.services.pypilot-hat = mkIf cfg.controlHead.enable (
       baseService "${cfg.package}/bin/pypilot_hat ${cfg.controlHead.lcd}"
       // {

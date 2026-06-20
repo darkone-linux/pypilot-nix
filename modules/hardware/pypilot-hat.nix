@@ -6,11 +6,13 @@
 #  - UART0 : PL011 (ttyAMA0) → arduino_servo motor controller at 38400 bd.
 #  - GPIO  : keypad, 433 MHz RF receiver, buzzer.
 #
-# Overlay node enables and access groups are the declarative baseline; exact
+# Buses are enabled through the vendor firmware config.txt
+# (hardware.raspberry-pi.config, nixos-raspberrypi) plus access groups; exact
 # pinout is validated on the bench (level 3).
 
 {
   config,
+  options,
   lib,
   pkgs,
   ...
@@ -18,95 +20,81 @@
 
 let
   cfg = config.services.navigation;
-  inherit (lib) mkIf;
+  inherit (lib)
+    mkIf
+    mkMerge
+    optionalAttrs
+    ;
+
+  # The vendor config.txt option exists only on the nixos-raspberrypi base
+  # (Pi hosts), not on the plain-nixpkgs lab VM. Emit the bus enablement only
+  # where it is declared, so the module stays evaluable everywhere.
+  hasConfigTxt = options.hardware ? raspberry-pi;
 in
 {
-  config = mkIf (cfg.hardware == "pypilot-hat") {
+  config = mkIf (cfg.hardware == "pypilot-hat") (mkMerge [
+    {
 
-    # ICM20948 sits on I2C-1; RTIMULib reaches it through /dev/i2c-1, so only
-    # bus access (i2c-dev + i2c group) is needed, no kernel IMU driver.
-    hardware.i2c.enable = true;
+      # ICM20948 sits on I2C-1; RTIMULib reaches it through /dev/i2c-1, so only
+      # bus access (i2c-dev + i2c group) is needed, no kernel IMU driver.
+      hardware.i2c.enable = true;
 
-    # spidev exposes the LCD bus to pypilot's display code.
-    boot.kernelModules = [ "spidev" ];
+      # spidev exposes the LCD bus to pypilot's display code; the vendor
+      # firmware auto-loads it once SPI is on, but request it explicitly.
+      boot.kernelModules = [ "spidev" ];
 
-    # The motor controller (arduino_servo) talks on the PL011 (ttyAMA0) at
-    # 38400 bd; it must carry data, not a login console. Freeing it from
-    # Bluetooth needs `dtoverlay=disable-bt` plus dropping `console=serial0`
-    # from the firmware cmdline (host config) — validated on the bench (level 3).
-    systemd.services."serial-getty@ttyAMA0".enable = false;
+      # No login console on the motor-controller UART.
+      systemd.services."serial-getty@ttyAMA0".enable = false;
 
-    hardware.deviceTree = {
-      enable = true;
+      # GPIO (keypad/RF/buzzer) and spidev access; plain nixpkgs ships no rpi
+      # udev rules, so expose the device nodes to dedicated groups.
+      users.groups = {
+        gpio = { };
+        spi = { };
+      };
 
-      # Enable the i2c1 and spi0 controllers (shipped disabled in the base DT);
-      # equivalent to dtparam=i2c_arm=on,spi=on.
-      overlays = [
-        {
-          name = "pypilot-hat-i2c1";
-          dtsText = ''
-            /dts-v1/;
-            /plugin/;
-            / {
-              compatible = "brcm,bcm2835";
-              fragment@0 {
-                target = <&i2c1>;
-                __overlay__ { status = "okay"; };
-              };
-            };
-          '';
-        }
-        {
-          name = "pypilot-hat-spi0";
+      services.udev.extraRules = ''
+        SUBSYSTEM=="bcm2835-gpiomem", GROUP="gpio", MODE="0660"
+        KERNEL=="gpiochip[0-9]*", GROUP="gpio", MODE="0660"
+        KERNEL=="spidev[0-9]*.[0-9]*", GROUP="spi", MODE="0660"
 
-          # The mainline bcm2711 DTB exports SPI0 as symbol `spi` (not `spi0`)
-          # and has no `spidev0` symbol, so enable `&spi` and declare the spidev
-          # child inline. `rohm,dh2228fv` is the spidev driver's generic match
-          # (a bare `spidev` compatible is refused by recent kernels).
-          dtsText = ''
-            /dts-v1/;
-            /plugin/;
-            / {
-              compatible = "brcm,bcm2835";
-              fragment@0 {
-                target = <&spi>;
-                __overlay__ {
-                  status = "okay";
-                  #address-cells = <1>;
-                  #size-cells = <0>;
+        # Stable name for the motor controller, matching OpenPlotter's
+        # convention; fe201000.serial is the BCM2711 (Pi 4) PL011 (Pi 5 differs).
+        KERNEL=="ttyAMA[0-9]*", KERNELS=="fe201000.serial:0.0", SYMLINK+="ttyOP_pilot", GROUP="dialout", MODE="0660"
+      '';
 
-                  spidev@0 {
-                    compatible = "rohm,dh2228fv";
-                    reg = <0>;
-                    spi-max-frequency = <2000000>;
-                    status = "okay";
-                  };
-                };
-              };
-            };
-          '';
-        }
-      ];
-    };
+      # i2c-tools for bench bring-up (i2cdetect on the IMU).
+      environment.systemPackages = [ pkgs.i2c-tools ];
+    }
 
-    # GPIO (keypad/RF/buzzer) and spidev access; plain nixpkgs ships no rpi
-    # udev rules, so expose the device nodes to dedicated groups.
-    users.groups = {
-      gpio = { };
-      spi = { };
-    };
+    # Bus enablement via the vendor firmware config.txt (nixos-raspberrypi):
+    # these dtparams/overlays actually apply (vendor DTBs ship __symbols__),
+    # unlike the generic image. Equivalent to RPi OS dtparam=spi=on,i2c_arm=on.
+    (optionalAttrs hasConfigTxt {
+      hardware.raspberry-pi.config.all = {
+        base-dt-params = {
 
-    services.udev.extraRules = ''
-      SUBSYSTEM=="bcm2835-gpiomem", GROUP="gpio", MODE="0660"
-      KERNEL=="gpiochip[0-9]*", GROUP="gpio", MODE="0660"
-      KERNEL=="spidev[0-9]*.[0-9]*", GROUP="spi", MODE="0660"
+          # SPI0 → /dev/spidev0.0, the JLX12864 LCD bus.
+          spi = {
+            enable = true;
+            value = "on";
+          };
 
-      # Stable name for the motor controller, matching OpenPlotter's convention;
-      # fe201000.serial is the BCM2711 (Pi 4) PL011 instance (Pi 5 differs).
-      KERNEL=="ttyAMA[0-9]*", KERNELS=="fe201000.serial:0.0", SYMLINK+="ttyOP_pilot", GROUP="dialout", MODE="0660"
-    '';
+          # I2C-1 → /dev/i2c-1, the ICM20948 IMU (read by RTIMULib).
+          i2c_arm = {
+            enable = true;
+            value = "on";
+          };
+        };
 
-    # i2c-tools for bench bring-up (i2cdetect on the IMU).
-    environment.systemPackages = [ pkgs.i2c-tools ];
-  };
+        # Free the PL011 (ttyAMA0) for the arduino_servo motor controller at
+        # 38400 bd: move Bluetooth off the UART. nixos-raspberrypi keeps the
+        # serial console off this UART, so it carries data, not a login.
+        dt-overlays.disable-bt = {
+          enable = true;
+          params = { };
+        };
+      };
+    })
+  ]);
 }
