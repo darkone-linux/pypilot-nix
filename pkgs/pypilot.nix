@@ -21,6 +21,10 @@
   rtimulib2,
   pypilot-data,
 
+  # server.py watches its config file via inotify.adapters; without it the
+  # server falls back to noisy 20 s polling ("No module named 'inotify'").
+  inotify,
+
   # HAT control head (pypilot_hat): libgpiod v2 bindings + LCD image rendering.
   gpiod,
   pillow,
@@ -91,6 +95,7 @@ buildPythonPackage rec {
     zeroconf
     rtimulib2
     pypilot-data
+    inotify
     gpiod
     pillow
     requests
