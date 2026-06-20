@@ -15,14 +15,18 @@ Style télégraphique. `[x]` fait · `[~]` partiel · `[ ]` à faire.
 - [x] Clavier azerty (fr) dans `common` (console + session Wayland labwc).
 - [x] Ne pas démarrer OpenCPN automatiquement (`desktop.autostartOpencpn = false`).
 - [x] Logs `journalctl` investigués (gpiod, renice, ugfx, SPI) → voir `probleme-hat-lcd.md`.
-- [x] **Essayer wayfire** (labwc jugé trop minimaliste : pas de menu, illisible). Ajouter wayfire au module desktop (compositeur configurable) + panneau/menu type Raspberry Pi OS (wf-shell / wf-panel). Basculer lab-rpi4 sur wayfire.
+- [ ] **Interface graphique — NON TRANCHÉE (point critique)**. Essais successifs : labwc (trop minimal, illisible), wayfire (abandonné), **GNOME** (déployé+redémarré : correct mais **trop lent sur Pi 4**). Piste retenue : DE léger **XFCE / LXDE / LXQt** (bien connus) — MAIS inutilisables visuellement sans **thème complet préconfiguré** (GTK + icônes + curseur + fond + config panel). À faire : choisir le DE, embarquer un thème propre déclarativement, panel + menu + favoris navigation (opencpn, xygrib), auto-login, always-on. Profiler la lenteur GNOME (KMS/vc4, accel GL) en parallèle.
 - [x] **Control head pypilot headless-safe** : LCD désactivé (option `pypilot.controlHead.lcd = "none"` → `pypilot_hat none`). Plus de crash ; keypad/IR/RF actifs (processus principal, indépendant du LCD) → appairage RF 433 possible via l'UI web. Patch `pypilot-headless-lcd.patch` : sous-processus LCD en veille au lieu de boucler. Repasser à `"jlx12864"` quand SPI fonctionnera.
-- [~] **OpenCPN — plugin pypilot** : packagé (`pkgs/opencpn-plugin-pypilot.nix`, build OK : `libpypilot_pi.so` + data) et câblé via `services.navigation.opencpn.plugins`. Câblage **corrigé** : `opencpnPkg` passait de `runCommand` (ne gardait que `bin/opencpn` → perdait `.desktop`/icône, donc pas de lanceur GNOME et env plugin non transmis depuis la grille) à `symlinkJoin` (garde `.desktop`+icône, wrappe le binaire). Vérifié : OpenCPN 5.14 lit bien `OPENCPN_PLUGIN_DIRS` (`plugin_paths.cpp:157`) + `XDG_DATA_DIRS`. **Reste à valider au banc** : compat ABI/API → le plugin doit apparaître dans la liste et s'activer.
+- [ ] **OpenCPN — plugin pypilot NE S'AFFICHE PAS au banc** : la liste des plugins est **toujours vide**. Donc problème plus profond que l'ABI. État : packagé (build OK : `libpypilot_pi.so` + data), câblé via `symlinkJoin` (`.desktop`+icône gardés), et OpenCPN 5.14 lit bien `OPENCPN_PLUGIN_DIRS` (`plugin_paths.cpp:157`). À diagnostiquer au banc :
+  - liste « vide » = onglet **catalogue** (téléchargeable, vide hors-ligne) ou onglet **installés** ? Le plugin doit apparaître dans *installés*.
+  - les plugins **fournis** par OpenCPN (grib/dashboard/wmm/chartdldr, dans `opencpn/lib/opencpn`) apparaissent-ils ? Si non → OpenCPN ne trouve aucun plugin (pas seulement le nôtre).
+  - le binaire lancé est-il bien le wrapper (`OPENCPN_PLUGIN_DIRS` positionné dans le process GUI) ? Vérifier `cat /proc/$(pidof opencpn)/environ`.
+  - **log de démarrage OpenCPN** : tentatives de chargement / rejets de `.so` (version API, lib manquante).
 
 ## Retours banc — « à investiguer plus tard »
 
 - [ ] **Puce GPS USB non reconnue** : relever VID:PID (`lsusb`), vérifier `gps.autodetectIds` / hotplug gpsd réel (`gpsdctl`), accès série du démon gpsd (groupe `dialout`).
-- [ ] **Interface plus lente qu'OpenPlotter** : profiler (compositeur Wayland sans accel ? services au boot ? `hardware.graphics`/`vc4` KMS ?).
+- [ ] **Interface lente** (confirmé : GNOME nettement trop lent sur Pi 4) : profiler accel GL/KMS (`vc4`/`v3d`, `hardware.graphics`), Wayland vs X, services au boot. Lié au choix du DE ci-dessus (un DE léger devrait déjà aider).
 
 ## Retours banc — « moins grave »
 
