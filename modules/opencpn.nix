@@ -35,24 +35,25 @@ let
     ${cfg.extraConfig}
   '';
 
-  # When plugins are listed, wrap opencpn with OPENCPN_PLUGIN_DIRS so the
-  # plugin .so files living in their own store paths are discoverable.
-  # opencpn respects this env var (plugin_paths.cpp).
+  # When plugins are listed, wrap opencpn so the plugin .so files (and their
+  # data) living in their own store paths are discoverable: opencpn scans
+  # OPENCPN_PLUGIN_DIRS for `*.so` and XDG_DATA_DIRS for `opencpn/plugins/`
+  # (plugin_paths.cpp). symlinkJoin keeps the package's .desktop launcher and
+  # icon, so the wrapped binary stays the one launched from the desktop.
   opencpnPkg =
     if cfg.plugins == [ ] then
       cfg.package
     else
-      pkgs.runCommand "opencpn-with-plugins"
-        {
-          nativeBuildInputs = [ pkgs.makeWrapper ];
-        }
-        ''
-          mkdir -p $out/bin
-          cp ${cfg.package}/bin/opencpn $out/bin/opencpn
+      pkgs.symlinkJoin {
+        name = "opencpn-with-plugins";
+        paths = [ cfg.package ];
+        nativeBuildInputs = [ pkgs.makeWrapper ];
+        postBuild = ''
           wrapProgram $out/bin/opencpn \
             --set OPENCPN_PLUGIN_DIRS "${concatStringsSep ":" (map (p: "${p}/lib/opencpn") cfg.plugins)}" \
             --prefix XDG_DATA_DIRS : "${concatStringsSep ":" (map (p: "${p}/share") cfg.plugins)}"
         '';
+      };
 in
 {
   options.services.navigation.opencpn = {

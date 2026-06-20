@@ -17,7 +17,7 @@ Style télégraphique. `[x]` fait · `[~]` partiel · `[ ]` à faire.
 - [x] Logs `journalctl` investigués (gpiod, renice, ugfx, SPI) → voir `probleme-hat-lcd.md`.
 - [x] **Essayer wayfire** (labwc jugé trop minimaliste : pas de menu, illisible). Ajouter wayfire au module desktop (compositeur configurable) + panneau/menu type Raspberry Pi OS (wf-shell / wf-panel). Basculer lab-rpi4 sur wayfire.
 - [x] **Control head pypilot headless-safe** : LCD désactivé (option `pypilot.controlHead.lcd = "none"` → `pypilot_hat none`). Plus de crash ; keypad/IR/RF actifs (processus principal, indépendant du LCD) → appairage RF 433 possible via l'UI web. Patch `pypilot-headless-lcd.patch` : sous-processus LCD en veille au lieu de boucler. Repasser à `"jlx12864"` quand SPI fonctionnera.
-- [x] **OpenCPN — plugin pypilot** : packagé (`pkgs/opencpn-plugin-pypilot.nix`) et câblé via `services.navigation.opencpn.plugins`. Actif sur lab-rpi4, navpi, lab-rpi5.
+- [~] **OpenCPN — plugin pypilot** : packagé (`pkgs/opencpn-plugin-pypilot.nix`, build OK : `libpypilot_pi.so` + data) et câblé via `services.navigation.opencpn.plugins`. Câblage **corrigé** : `opencpnPkg` passait de `runCommand` (ne gardait que `bin/opencpn` → perdait `.desktop`/icône, donc pas de lanceur GNOME et env plugin non transmis depuis la grille) à `symlinkJoin` (garde `.desktop`+icône, wrappe le binaire). Vérifié : OpenCPN 5.14 lit bien `OPENCPN_PLUGIN_DIRS` (`plugin_paths.cpp:157`) + `XDG_DATA_DIRS`. **Reste à valider au banc** : compat ABI/API → le plugin doit apparaître dans la liste et s'activer.
 
 ## Retours banc — « à investiguer plus tard »
 
