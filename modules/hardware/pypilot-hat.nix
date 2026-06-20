@@ -85,6 +85,12 @@ in
             enable = true;
             value = "on";
           };
+
+          # If the IMU drops off the bus (bursts of "I2C read error from 104"
+          # then a frozen heading on the LCD), the BCM2835 clock-stretch bug is a
+          # prime suspect. Halving the bus speed mitigates it; uncomment:
+          #
+          # i2c_arm_baudrate = { enable = true; value = "50000"; };  # 100k → 50k
         };
 
         # Free the PL011 (ttyAMA0) for the arduino_servo motor controller at
