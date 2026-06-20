@@ -164,12 +164,16 @@ in
     # 433 MHz RF receivers; this is what records the remote's codes when pairing.
     # The LCD driver argument selects the panel (jlx12864) or "none" (headless).
     systemd.services.pypilot-hat = mkIf cfg.controlHead.enable (
-      baseService "${cfg.package}/bin/pypilot_hat ${cfg.controlHead.lcd}"
-      // {
+      lib.recursiveUpdate (baseService "${cfg.package}/bin/pypilot_hat ${cfg.controlHead.lcd}") {
         description = "pypilot HAT control head (LCD, keypad, IR, 433 MHz RF)";
         wantedBy = [ "multi-user.target" ];
         after = [ "pypilot.service" ];
         wants = [ "pypilot.service" ];
+
+        # pypilot_hat exits 0 when it rewrites its pilot list (first run, or any
+        # config change via the web UI); "on-failure" leaves the LCD frozen, so
+        # restart unconditionally to keep the control head live.
+        serviceConfig.Restart = "always";
       }
     );
 
