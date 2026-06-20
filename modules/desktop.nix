@@ -1,11 +1,12 @@
-# desktop.nix — on-board graphical session (Openbox X11 or labwc Wayland).
+# desktop.nix — on-board graphical session (GNOME or labwc Wayland).
 #
 # A boat chartplotter needs a lightweight, always-on desktop.
 # Supports two paths:
 #
-#   openbox — X11 stacking WM, native OpenCPN, polybar panel.
-#   labwc   — Wayland stacking compositor (RPi OS direction), waybar panel,
-#             runs OpenCPN through Xwayland.
+#   gnome   — Full GNOME desktop (GDM autologin, GNOME Shell, Wayland).
+#             Best app compat, built-in panel, heavier on RAM.
+#   labwc   — Wayland stacking compositor (RPi OS direction), waybar panel.
+#             Lightweight, runs OpenCPN through Xwayland.
 #
 # No matter the path, the screen must NEVER blank or sleep, so `alwaysOn`
 # masks every suspend path, tells logind to ignore idle/lid, stops console
@@ -27,15 +28,15 @@ let
     mkOption
     mkEnableOption
     mkDefault
+    optionalAttrs
     types
     concatStringsSep
     optional
-    optionalString
     ;
 in
 {
   options.services.navigation.desktop = {
-    enable = mkEnableOption "the on-board graphical desktop (Openbox X11 or labwc Wayland)";
+    enable = mkEnableOption "the on-board graphical desktop (GNOME or labwc Wayland)";
 
     user = mkOption {
       type = types.str;
@@ -46,10 +47,10 @@ in
     compositor = mkOption {
       type = types.enum [
         "labwc"
-        "openbox"
+        "gnome"
       ];
       default = "labwc";
-      description = "Display server and WM (labwc Wayland or Openbox X11).";
+      description = "Desktop environment (labwc Wayland or GNOME).";
     };
 
     alwaysOn = mkOption {
@@ -117,67 +118,51 @@ in
       };
     })
 
-    # ---- openbox-specific (X11) ----
-    (mkIf (cfg.compositor == "openbox") {
-      services.xserver.enable = true;
-      services.xserver.displayManager.autoLogin.enable = true;
-      services.xserver.displayManager.autoLogin.user = cfg.user;
-      services.xserver.windowManager.openbox.enable = true;
+    # ---- GNOME-specific ----
+    (mkIf (cfg.compositor == "gnome") {
+      services.desktopManager.gnome.enable = true;
+      services.displayManager.gdm.enable = true;
+      services.displayManager.autoLogin.enable = true;
+      services.displayManager.autoLogin.user = cfg.user;
 
-      # Openbox autostart: panel, desktop, navigation apps.
-      environment.etc."xdg/openbox/autostart".text = ''
-        # X11 screen blanking and DPMS off (always-on display).
-        ${pkgs.xorg.xset}/bin/xset -dpms s off s noblank &
+      # Always-on GNOME settings via dconf (no screen blanking, no lock).
+      programs.dconf.enable = true;
+      environment.etc = {
+        "dconf/db/local".text = ''
+          [org/gnome/desktop/session]
+          idle-delay=uint32 0
 
-        ${pkgs.polybar}/bin/polybar main &
-        ${pkgs.pcmanfm}/bin/pcmanfm --desktop &
-      ''
-      + optionalString (opencpn.enable && cfg.autostartOpencpn) ''
-        ${opencpn.package}/bin/opencpn &
-      ''
-      + concatStringsSep "\n" (map (cmd: "${cmd} &") cfg.autostart)
-      + "\n";
+          [org/gnome/desktop/screensaver]
+          lock-enabled=false
 
-      # Minimal polybar panel: clock, CPU, memory, system tray.
-      environment.etc."xdg/polybar/config.ini".text = ''
-        [bar/main]
-        width = 100%
-        height = 24
-        background = #222222
-        foreground = #efefef
-        font-0 = DejaVu Sans Mono:size=10
+          [org/gnome/desktop/lockdown]
+          disable-lock-screen=true
 
-        modules-left =
-        modules-center = clock
-        modules-right = cpu memory tray
+          [org/gnome/settings-daemon/plugins/power]
+          sleep-inactive-ac-type='nothing'
+          sleep-inactive-battery-type='nothing'
+        '';
+        "dconf/db/local.d/locks/always-on".text = ''
+          /org/gnome/desktop/session/idle-delay
+          /org/gnome/desktop/screensaver/lock-enabled
+          /org/gnome/desktop/lockdown/disable-lock-screen
+          /org/gnome/settings-daemon/plugins/power/sleep-inactive-ac-type
+          /org/gnome/settings-daemon/plugins/power/sleep-inactive-battery-type
+        '';
+      }
+      # GNOME autostart for OpenCPN.
+      // optionalAttrs (opencpn.enable && cfg.autostartOpencpn) {
+        "xdg/autostart/opencpn.desktop".text = ''
+          [Desktop Entry]
+          Type=Application
+          Name=OpenCPN
+          Exec=${opencpn.package}/bin/opencpn
+          X-GNOME-Autostart-enabled=true
+        '';
+      };
 
-        [module/clock]
-        type = internal/date
-        interval = 1
-        date = %H:%M
-        date-alt = %Y-%m-%d %H:%M:%S
-        label = %date%
-
-        [module/cpu]
-        type = internal/cpu
-        interval = 2
-        format = CPU: <label> <bar-load>
-        label = %percentage:2%%
-
-        [module/memory]
-        type = internal/memory
-        interval = 2
-        format = MEM: <label> <bar-used>
-        label = %percentage_used:2%%
-
-        [module/tray]
-        type = internal/tray
-      '';
-
-      environment.systemPackages = [
-        pkgs.openbox
-        pkgs.polybar
-        pkgs.xterm
+      environment.systemPackages = with pkgs; [
+        gnome-terminal
       ];
     })
 
@@ -193,7 +178,6 @@ in
         pkgs.vlc
       ];
 
-      # Wayland/Wayfire/X11/XWayland graphics stack.
       hardware.graphics.enable = mkDefault true;
       fonts.packages = [ pkgs.dejavu_fonts ];
     }

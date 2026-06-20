@@ -12,5 +12,5 @@
   services.navigation.opencpn.enable = true;
   services.navigation.opencpn.plugins = [ pkgs.opencpn-plugin-pypilot ];
   services.navigation.desktop.enable = true;
-  services.navigation.desktop.compositor = "openbox";
+  services.navigation.desktop.compositor = "gnome";
 }
