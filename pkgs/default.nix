@@ -1,8 +1,8 @@
-# Custom marine-navigation packages. Takes a nixpkgs instance and returns the
-# package set wired with its internal dependencies.
+# Custom marine-navigation packages, as a nixpkgs overlay.
 #
-# `prev` is the previous overlay level — use it to reference un-overridden
-# nixpkgs packages from within this overlay without infinite recursion.
+# Additive only: every package is built from `final` (the fixpoint, so any
+# override composes), so the previous level `_prev` is unused. Imported directly
+# as the flake's overlays.default and applied by hosts/common.nix.
 
 final: _prev:
 let

@@ -15,8 +15,17 @@
         "aarch64-linux"
       ];
 
-      forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
-      navPackages = pkgs: (import ./pkgs) pkgs pkgs;
+      # The marine packages as a nixpkgs overlay (pkgs/default.nix); also exported
+      # as overlays.default and applied by hosts/common.nix.
+      marineOverlay = import ./pkgs;
+
+      # Run `f` against nixpkgs extended with the marine overlay, per system.
+      forAllSystems =
+        f: nixpkgs.lib.genAttrs systems (system: f (nixpkgs.legacyPackages.${system}.extend marineOverlay));
+
+      # Only the marine packages (not all of nixpkgs) for the packages/checks
+      # outputs: pick the overlay's own attribute names out of the extended set.
+      marinePackages = pkgs: nixpkgs.lib.getAttrs (builtins.attrNames (marineOverlay pkgs pkgs)) pkgs;
 
       # A NixOS host: shared base + per-host modules. Each host picks its HAT
       # via services.navigation.hardware in its own configuration.nix.
@@ -47,9 +56,9 @@
     {
       packages = nixpkgs.lib.recursiveUpdate (forAllSystems (
         pkgs:
-        (navPackages pkgs)
+        (marinePackages pkgs)
         // {
-          default = (navPackages pkgs).pypilot;
+          default = pkgs.pypilot;
         }
       )) { aarch64-linux = sdImages; };
 
@@ -57,7 +66,7 @@
       # integration test) — run by `nix flake check`.
       checks = forAllSystems (
         pkgs:
-        (navPackages pkgs)
+        (marinePackages pkgs)
         // {
           integration = import ./tests/integration.nix { inherit pkgs; };
         }
@@ -84,7 +93,7 @@
 
       # Adds the custom marine packages (pypilot, signalk-server, …) to pkgs;
       # the service modules resolve their default `package` through it.
-      overlays.default = final: _prev: navPackages final;
+      overlays.default = marineOverlay;
 
       nixosModules = {
 
