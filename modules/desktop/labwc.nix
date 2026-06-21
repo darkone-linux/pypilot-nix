@@ -3,8 +3,9 @@
 # Active only when `compositor == "labwc"`. Builds a polished single-screen
 # appliance: solid blue background (swaybg), dark labwc window theme (NavBlue),
 # Arc-Dark/Papirus for GTK apps, and a waybar top panel whose left side is a row
-# of launcher buttons (OpenCPN, GRIB, terminal, notes, browser, Signal K). No
-# right-click root menu — the panel is the only launcher (per design).
+# of launcher buttons (OpenCPN, GRIB, terminal, notes, browser, SignalK). A
+# right-click root menu lists every app by category. Slow apps (OpenCPN, browser)
+# pop a "starting…" notification (mako) so the helmsman doesn't click twice.
 
 {
   config,
@@ -22,25 +23,54 @@ let
     optional
     ;
 
+  # Wallpaper blue; `accent` is a touch darker so the focused title bar and the
+  # active menu item stand out against the background instead of blending in.
   blue = "#3C4FA2";
+  accent = "#2C397A";
 
-  # Launcher commands, full store paths (waybar inherits no PATH).
-  cmd = {
+  # Raw binaries, full store paths (waybar/labwc inherit no PATH).
+  bin = {
     opencpn = "${opencpn.package}/bin/opencpn";
     xygrib = "${pkgs.xygrib}/bin/xygrib";
     terminal = "${pkgs.foot}/bin/foot";
     notes = "${pkgs.xfce.mousepad}/bin/mousepad";
     browser = "${pkgs.chromium}/bin/chromium";
-    signalk = "${pkgs.chromium}/bin/chromium --app=https://localhost:3000/";
+    signalk = "${pkgs.chromium}/bin/chromium --app=http://localhost:3000/";
+    files = "${pkgs.pcmanfm}/bin/pcmanfm";
+    pdf = "${pkgs.evince}/bin/evince";
+    vlc = "${pkgs.vlc}/bin/vlc";
   };
 
-  # labwc window decorations: dark with the blue accent on the active title.
+  # Wrap a slow launcher so it flashes a notification before exec'ing — instant
+  # feedback that the click registered while the app loads.
+  notify =
+    name: title: command:
+    "${pkgs.writeShellScript "launch-${name}" ''
+      ${pkgs.libnotify}/bin/notify-send -t 5000 "${title}" "Démarrage en cours…" || true
+      exec ${command}
+    ''}";
+
+  # Final launch commands: heavy apps get the notification wrapper, snappy ones
+  # run directly.
+  launch = {
+    opencpn = notify "opencpn" "OpenCPN" bin.opencpn;
+    xygrib = notify "xygrib" "XyGrib" bin.xygrib;
+    signalk = notify "signalk" "SignalK" bin.signalk;
+    browser = notify "browser" "Navigateur" bin.browser;
+    terminal = bin.terminal;
+    notes = bin.notes;
+    files = bin.files;
+    pdf = bin.pdf;
+    vlc = bin.vlc;
+  };
+
+  # labwc window decorations: dark, with the darker blue accent on focus.
   navBlueTheme = pkgs.writeTextDir "share/themes/NavBlue/labwc/themerc" ''
     border.width: 2
     padding.height: 4
-    window.active.border.color: ${blue}
+    window.active.border.color: ${accent}
     window.inactive.border.color: #2a2e3a
-    window.active.title.bg.color: ${blue}
+    window.active.title.bg.color: ${accent}
     window.inactive.title.bg.color: #2a2e3a
     window.active.label.text.color: #ffffff
     window.inactive.label.text.color: #b0b4c0
@@ -48,22 +78,23 @@ let
     window.inactive.button.unpressed.image.color: #b0b4c0
     menu.items.bg.color: #1f2330
     menu.items.text.color: #e6e8ee
-    menu.items.active.bg.color: ${blue}
+    menu.items.active.bg.color: ${accent}
     menu.items.active.text.color: #ffffff
     osd.bg.color: #1f2330
-    osd.border.color: ${blue}
+    osd.border.color: ${accent}
     osd.label.text.color: #e6e8ee
   '';
 in
 mkIf (cfg.enable && cfg.compositor == "labwc") {
-  # Solid blue background + panel; OpenCPN only when explicitly requested.
+  # Background + notification daemon + panel; OpenCPN only when requested.
   environment.etc."xdg/labwc/autostart".text =
     concatStringsSep "\n" (
       [
         "${pkgs.swaybg}/bin/swaybg -c '${blue}' >/dev/null 2>&1 &"
+        "${pkgs.mako}/bin/mako >/dev/null 2>&1 &"
         "${pkgs.waybar}/bin/waybar >/dev/null 2>&1 &"
       ]
-      ++ optional (opencpn.enable && cfg.autostartOpencpn) "${cmd.opencpn} &"
+      ++ optional (opencpn.enable && cfg.autostartOpencpn) "${bin.opencpn} &"
       ++ cfg.autostart
     )
     + "\n";
@@ -76,7 +107,8 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     GTK_THEME=Arc-Dark
   '';
 
-  # labwc core config: NavBlue theme, rounded corners, Super+Return = terminal.
+  # labwc core config: NavBlue theme, Super+Return = terminal, right-click root
+  # opens the categorized application menu.
   environment.etc."xdg/labwc/rc.xml".text = ''
     <?xml version="1.0"?>
     <labwc_config>
@@ -87,10 +119,46 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
       </theme>
       <keyboard>
         <keybind key="W-Return">
-          <action name="Execute" command="${cmd.terminal}" />
+          <action name="Execute" command="${bin.terminal}" />
         </keybind>
       </keyboard>
+      <mouse>
+        <context name="Root">
+          <mousebind button="Right" action="Press">
+            <action name="ShowMenu" menu="root-menu" />
+          </mousebind>
+        </context>
+      </mouse>
     </labwc_config>
+  '';
+
+  # Right-click application menu, grouped by category (every installed app).
+  environment.etc."xdg/labwc/menu.xml".text = ''
+    <?xml version="1.0" encoding="UTF-8"?>
+    <openbox_menu>
+      <menu id="root-menu" label="Applications">
+        <menu id="menu-nav" label="Navigation">
+          <item label="OpenCPN"><action name="Execute"><command>${launch.opencpn}</command></action></item>
+          <item label="GRIB (XyGrib)"><action name="Execute"><command>${launch.xygrib}</command></action></item>
+          <item label="SignalK"><action name="Execute"><command>${launch.signalk}</command></action></item>
+        </menu>
+        <menu id="menu-net" label="Internet">
+          <item label="Navigateur web"><action name="Execute"><command>${launch.browser}</command></action></item>
+        </menu>
+        <menu id="menu-media" label="Multimédia">
+          <item label="Lecteur VLC"><action name="Execute"><command>${launch.vlc}</command></action></item>
+          <item label="Visionneuse PDF"><action name="Execute"><command>${launch.pdf}</command></action></item>
+        </menu>
+        <menu id="menu-tools" label="Outils">
+          <item label="Terminal"><action name="Execute"><command>${launch.terminal}</command></action></item>
+          <item label="Notes"><action name="Execute"><command>${launch.notes}</command></action></item>
+          <item label="Fichiers"><action name="Execute"><command>${launch.files}</command></action></item>
+        </menu>
+        <separator />
+        <item label="Recharger labwc"><action name="Reconfigure" /></item>
+        <item label="Quitter la session"><action name="Exit" /></item>
+      </menu>
+    </openbox_menu>
   '';
 
   # GTK apps (pcmanfm, mousepad, xygrib) follow the same dark look.
@@ -101,6 +169,17 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     gtk-font-name=Sans 11
     gtk-cursor-theme-name=Adwaita
     gtk-cursor-theme-size=24
+  '';
+
+  # Large, readable terminal font — the default was unusably small on the helm.
+  environment.etc."xdg/foot/foot.ini".text = ''
+    [main]
+    font=DejaVu Sans Mono:size=18
+    pad=8x8
+
+    [colors]
+    background=1f2330
+    foreground=e6e8ee
   '';
 
   # Top panel: launcher buttons (left), clock (center), system (right).
@@ -116,12 +195,12 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
       ],
       "modules-center": [ "clock" ],
       "modules-right": [ "cpu", "memory", "network", "tray" ],
-      "custom/opencpn":  { "format": "OpenCPN",  "on-click": "${cmd.opencpn}",  "tooltip": false },
-      "custom/xygrib":   { "format": "GRIB",     "on-click": "${cmd.xygrib}",   "tooltip": false },
-      "custom/terminal": { "format": "Terminal", "on-click": "${cmd.terminal}", "tooltip": false },
-      "custom/notes":    { "format": "Notes",    "on-click": "${cmd.notes}",    "tooltip": false },
-      "custom/browser":  { "format": "Web",      "on-click": "${cmd.browser}",  "tooltip": false },
-      "custom/signalk":  { "format": "Signal K", "on-click": "${cmd.signalk}",  "tooltip": false },
+      "custom/opencpn":  { "format": "OpenCPN",  "on-click": "${launch.opencpn}",  "tooltip": false },
+      "custom/xygrib":   { "format": "GRIB",     "on-click": "${launch.xygrib}",   "tooltip": false },
+      "custom/terminal": { "format": "Terminal", "on-click": "${launch.terminal}", "tooltip": false },
+      "custom/notes":    { "format": "Notes",    "on-click": "${launch.notes}",    "tooltip": false },
+      "custom/browser":  { "format": "Web",      "on-click": "${launch.browser}",  "tooltip": false },
+      "custom/signalk":  { "format": "SignalK",  "on-click": "${launch.signalk}",  "tooltip": false },
       "clock":   { "format": "{:%a %d %b  %H:%M}" },
       "cpu":     { "format": "CPU {usage}%", "interval": 5 },
       "memory":  { "format": "RAM {percentage}%", "interval": 5 },
@@ -156,7 +235,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     }
     #custom-opencpn:hover, #custom-xygrib:hover, #custom-terminal:hover,
     #custom-notes:hover, #custom-browser:hover, #custom-signalk:hover {
-      background-color: ${blue};
+      background-color: ${accent};
     }
     #clock { font-weight: bold; }
     #cpu, #memory, #network, #tray {
@@ -169,6 +248,8 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     pkgs.labwc
     pkgs.waybar
     pkgs.swaybg
+    pkgs.mako
+    pkgs.libnotify
     pkgs.foot
     pkgs.xwayland
     pkgs.pcmanfm
