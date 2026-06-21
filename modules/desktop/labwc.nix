@@ -48,14 +48,18 @@ let
   # at startup (-r), then a bare invocation toggles it open.
   nwgDrawer = "${pkgs.nwg-drawer}/bin/nwg-drawer";
 
-  # Panel glyphs from Font Awesome v4 range (safe in Symbols Nerd Font).
+  # Panel glyphs. Nix has no unicode escape, and literal PUA bytes get stripped,
+  # so build each glyph from its codepoint via JSON's \u escape at eval time
+  # (the .nix source stays ASCII). Codepoints are Font Awesome v4 (in the range
+  # bundled by Symbols Nerd Font).
+  faGlyph = code: builtins.fromJSON ''"\u${code}"'';
   glyph = {
-    menu = "";
-    opencpn = "";
-    grib = "";
-    signalk = "";
-    web = "";
-    sun = "";
+    menu = faGlyph "f00a";
+    opencpn = faGlyph "f14e";
+    grib = faGlyph "f0c2";
+    signalk = faGlyph "f012";
+    web = faGlyph "f0ac";
+    sun = faGlyph "f185";
   };
 
   # Wrap a slow launcher so it flashes a notification before exec'ing — instant
@@ -172,11 +176,6 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
         <cornerRadius>6</cornerRadius>
         <font name="sans" size="12" />
       </theme>
-
-      <!-- Show application icons next to the right-click menu entries. -->
-      <menu>
-        <showIcons>yes</showIcons>
-      </menu>
       <keyboard>
 
         <!-- labwc defaults worth keeping (lost the moment any keybind is set). -->
@@ -211,10 +210,14 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
 
       <mouse>
 
-        <!-- Keep every default mouse binding, then narrow the desktop: only a
-             RIGHT click opens the menu (default also bound it to left/middle). -->
+        <!-- Keep all default window bindings (<default/>); on the desktop (Root)
+             disable the menu on left/middle click — an action-less mousebind
+             overrides the default and is then cleared by labwc. Only right click
+             still opens the minimal session menu. -->
         <default />
         <context name="Root">
+          <mousebind button="Left" action="Press" />
+          <mousebind button="Middle" action="Press" />
           <mousebind button="Right" action="Press">
             <action name="ShowMenu" menu="root-menu" />
           </mousebind>
@@ -223,31 +226,14 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     </labwc_config>
   '';
 
-  # Right-click application menu, grouped by category (every installed app).
+  # Minimal right-click menu: apps live in the start menu (nwg-drawer), so the
+  # desktop menu only carries session actions.
   environment.etc."xdg/labwc/menu.xml".text = ''
     <?xml version="1.0" encoding="UTF-8"?>
     <openbox_menu>
-      <menu id="root-menu" label="Applications">
-        <menu id="menu-nav" label="Navigation" icon="applications-internet">
-          <item label="OpenCPN" icon="opencpn"><action name="Execute"><command>${launch.opencpn}</command></action></item>
-          <item label="GRIB (XyGrib)" icon="xygrib"><action name="Execute"><command>${launch.xygrib}</command></action></item>
-          <item label="SignalK" icon="network-server"><action name="Execute"><command>${launch.signalk}</command></action></item>
-        </menu>
-        <menu id="menu-net" label="Internet" icon="web-browser">
-          <item label="Navigateur web" icon="web-browser"><action name="Execute"><command>${launch.browser}</command></action></item>
-        </menu>
-        <menu id="menu-media" label="Multimédia" icon="applications-multimedia">
-          <item label="Lecteur VLC" icon="vlc"><action name="Execute"><command>${launch.vlc}</command></action></item>
-          <item label="Visionneuse PDF" icon="application-pdf"><action name="Execute"><command>${launch.pdf}</command></action></item>
-        </menu>
-        <menu id="menu-tools" label="Outils" icon="applications-utilities">
-          <item label="Terminal" icon="utilities-terminal"><action name="Execute"><command>${launch.terminal}</command></action></item>
-          <item label="Notes" icon="accessories-text-editor"><action name="Execute"><command>${launch.notes}</command></action></item>
-          <item label="Fichiers" icon="system-file-manager"><action name="Execute"><command>${launch.files}</command></action></item>
-        </menu>
-        <separator />
-        <item label="Recharger labwc" icon="view-refresh"><action name="Reconfigure" /></item>
-        <item label="Quitter la session" icon="system-log-out"><action name="Exit" /></item>
+      <menu id="root-menu" label="Menu">
+        <item label="Recharger labwc"><action name="Reconfigure" /></item>
+        <item label="Quitter la session"><action name="Exit" /></item>
       </menu>
     </openbox_menu>
   '';
