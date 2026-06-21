@@ -2,12 +2,13 @@
 #
 # Active only when `compositor == "labwc"`. Builds a polished single-screen
 # appliance: solid blue background (swaybg), dark labwc window theme (NavBlue),
-# Arc-Dark/Papirus for GTK apps, and a waybar top panel whose left side is a row
-# of launcher buttons (OpenCPN, GRIB, terminal, notes, browser, SignalK). A
-# right-click root menu lists every app by category. Slow apps (OpenCPN, browser)
-# pop a "starting…" notification (mako) so the helmsman doesn't click twice.
-# Media keys + waybar buttons drive screen brightness over DDC/CI (ddcutil) and
-# volume via PipeWire (wpctl) — brightness matters for day/night navigation.
+# Arc-Dark/Papirus for GTK apps. The waybar top panel has a start-menu button
+# (nwg-drawer, full-screen categorized app grid), quick-launch icon glyphs, and
+# a window taskbar; the right-click root menu lists apps by category with icons.
+# Slow apps (OpenCPN, browser) pop a "starting…" notification (mako) so the
+# helmsman doesn't click twice. Media keys + waybar buttons drive screen
+# brightness over DDC/CI (ddcutil) and volume via PipeWire (wpctl) — brightness
+# matters for day/night navigation.
 
 {
   config,
@@ -41,6 +42,20 @@ let
     files = "${pkgs.pcmanfm}/bin/pcmanfm";
     pdf = "${pkgs.evince}/bin/evince";
     vlc = "${pkgs.vlc}/bin/vlc";
+  };
+
+  # nwg-drawer: full-screen categorized app grid (the start menu). Run resident
+  # at startup (-r), then a bare invocation toggles it open.
+  nwgDrawer = "${pkgs.nwg-drawer}/bin/nwg-drawer";
+
+  # Panel glyphs from Font Awesome v4 range (safe in Symbols Nerd Font).
+  glyph = {
+    menu = "";
+    opencpn = "";
+    grib = "";
+    signalk = "";
+    web = "";
+    sun = "";
   };
 
   # Wrap a slow launcher so it flashes a notification before exec'ing — instant
@@ -105,6 +120,19 @@ let
     osd.border.color: ${accent}
     osd.label.text.color: #e6e8ee
   '';
+
+  # Desktop entry so the chromium-app SignalK shows up (icon + category) in the
+  # drawer and the right-click menu like a real application.
+  signalkDesktop = pkgs.writeTextDir "share/applications/signalk.desktop" ''
+    [Desktop Entry]
+    Type=Application
+    Name=SignalK
+    Comment=Tableau de bord SignalK
+    Exec=${bin.signalk}
+    Icon=network-server
+    Terminal=false
+    Categories=Network;
+  '';
 in
 mkIf (cfg.enable && cfg.compositor == "labwc") {
   # Background + notification daemon + panel; OpenCPN only when requested.
@@ -114,6 +142,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
         "${pkgs.swaybg}/bin/swaybg -c '${blue}' >/dev/null 2>&1 &"
         "${pkgs.mako}/bin/mako >/dev/null 2>&1 &"
         "${pkgs.waybar}/bin/waybar >/dev/null 2>&1 &"
+        "${nwgDrawer} -r -fm ${pkgs.pcmanfm}/bin/pcmanfm -term ${pkgs.foot}/bin/foot -is 64 -c 6 >/dev/null 2>&1 &"
       ]
       ++ optional (opencpn.enable && cfg.autostartOpencpn) "${bin.opencpn} &"
       ++ cfg.autostart
@@ -143,6 +172,11 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
         <cornerRadius>6</cornerRadius>
         <font name="sans" size="12" />
       </theme>
+
+      <!-- Show application icons next to the right-click menu entries. -->
+      <menu>
+        <showIcons>yes</showIcons>
+      </menu>
       <keyboard>
 
         <!-- labwc defaults worth keeping (lost the moment any keybind is set). -->
@@ -155,6 +189,9 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
         <keybind key="W-Up"><action name="SnapToEdge" direction="up" combine="yes" /></keybind>
         <keybind key="W-Down"><action name="SnapToEdge" direction="down" combine="yes" /></keybind>
         <keybind key="A-Space"><action name="ShowMenu" menu="client-menu" atCursor="no" /></keybind>
+
+        <!-- Super+Space opens the start menu (nwg-drawer). -->
+        <keybind key="W-space"><action name="Execute"><command>${nwgDrawer}</command></action></keybind>
 
         <!-- Custom Ctrl+Alt launchers (slow apps reuse the notify wrappers). -->
         <keybind key="C-A-t"><action name="Execute"><command>${bin.terminal}</command></action></keybind>
@@ -191,26 +228,26 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     <?xml version="1.0" encoding="UTF-8"?>
     <openbox_menu>
       <menu id="root-menu" label="Applications">
-        <menu id="menu-nav" label="Navigation">
-          <item label="OpenCPN"><action name="Execute"><command>${launch.opencpn}</command></action></item>
-          <item label="GRIB (XyGrib)"><action name="Execute"><command>${launch.xygrib}</command></action></item>
-          <item label="SignalK"><action name="Execute"><command>${launch.signalk}</command></action></item>
+        <menu id="menu-nav" label="Navigation" icon="applications-internet">
+          <item label="OpenCPN" icon="opencpn"><action name="Execute"><command>${launch.opencpn}</command></action></item>
+          <item label="GRIB (XyGrib)" icon="xygrib"><action name="Execute"><command>${launch.xygrib}</command></action></item>
+          <item label="SignalK" icon="network-server"><action name="Execute"><command>${launch.signalk}</command></action></item>
         </menu>
-        <menu id="menu-net" label="Internet">
-          <item label="Navigateur web"><action name="Execute"><command>${launch.browser}</command></action></item>
+        <menu id="menu-net" label="Internet" icon="web-browser">
+          <item label="Navigateur web" icon="web-browser"><action name="Execute"><command>${launch.browser}</command></action></item>
         </menu>
-        <menu id="menu-media" label="Multimédia">
-          <item label="Lecteur VLC"><action name="Execute"><command>${launch.vlc}</command></action></item>
-          <item label="Visionneuse PDF"><action name="Execute"><command>${launch.pdf}</command></action></item>
+        <menu id="menu-media" label="Multimédia" icon="applications-multimedia">
+          <item label="Lecteur VLC" icon="vlc"><action name="Execute"><command>${launch.vlc}</command></action></item>
+          <item label="Visionneuse PDF" icon="application-pdf"><action name="Execute"><command>${launch.pdf}</command></action></item>
         </menu>
-        <menu id="menu-tools" label="Outils">
-          <item label="Terminal"><action name="Execute"><command>${launch.terminal}</command></action></item>
-          <item label="Notes"><action name="Execute"><command>${launch.notes}</command></action></item>
-          <item label="Fichiers"><action name="Execute"><command>${launch.files}</command></action></item>
+        <menu id="menu-tools" label="Outils" icon="applications-utilities">
+          <item label="Terminal" icon="utilities-terminal"><action name="Execute"><command>${launch.terminal}</command></action></item>
+          <item label="Notes" icon="accessories-text-editor"><action name="Execute"><command>${launch.notes}</command></action></item>
+          <item label="Fichiers" icon="system-file-manager"><action name="Execute"><command>${launch.files}</command></action></item>
         </menu>
         <separator />
-        <item label="Recharger labwc"><action name="Reconfigure" /></item>
-        <item label="Quitter la session"><action name="Exit" /></item>
+        <item label="Recharger labwc" icon="view-refresh"><action name="Reconfigure" /></item>
+        <item label="Quitter la session" icon="system-log-out"><action name="Exit" /></item>
       </menu>
     </openbox_menu>
   '';
@@ -236,28 +273,34 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     foreground=e6e8ee
   '';
 
-  # Top panel: launcher buttons (left), clock (center), system (right).
+  # Top panel: start menu + quick-launch icons + window list (left), clock
+  # (center), brightness + system (right). The full app set lives in the drawer
+  # and the right-click menu, so the bar stays uncluttered.
   environment.etc."xdg/waybar/config".text = ''
     {
       "layer": "top",
       "position": "top",
-      "height": 38,
-      "spacing": 6,
+      "height": 40,
+      "spacing": 4,
       "modules-left": [
-        "custom/opencpn", "custom/xygrib", "custom/terminal",
-        "custom/notes", "custom/browser", "custom/signalk", "custom/files"
+        "custom/menu", "custom/opencpn", "custom/xygrib",
+        "custom/signalk", "custom/browser", "wlr/taskbar"
       ],
       "modules-center": [ "clock" ],
       "modules-right": [ "custom/bright-down", "custom/bright-up", "cpu", "memory", "network", "tray" ],
-      "custom/bright-down": { "format": "☀ −", "on-click": "${brightness "down"}", "tooltip": false },
-      "custom/bright-up":   { "format": "☀ +", "on-click": "${brightness "up"}",   "tooltip": false },
-      "custom/opencpn":  { "format": "OpenCPN",  "on-click": "${launch.opencpn}",  "tooltip": false },
-      "custom/xygrib":   { "format": "GRIB",     "on-click": "${launch.xygrib}",   "tooltip": false },
-      "custom/terminal": { "format": "Terminal", "on-click": "${launch.terminal}", "tooltip": false },
-      "custom/notes":    { "format": "Notes",    "on-click": "${launch.notes}",    "tooltip": false },
-      "custom/browser":  { "format": "Web",      "on-click": "${launch.browser}",  "tooltip": false },
-      "custom/signalk":  { "format": "SignalK",  "on-click": "${launch.signalk}",  "tooltip": false },
-      "custom/files":    { "format": "Fichiers", "on-click": "${launch.files}",    "tooltip": false },
+      "custom/menu":     { "format": "${glyph.menu}",    "on-click": "${nwgDrawer}",       "tooltip": false },
+      "custom/opencpn":  { "format": "${glyph.opencpn}", "on-click": "${launch.opencpn}",  "tooltip": false },
+      "custom/xygrib":   { "format": "${glyph.grib}",    "on-click": "${launch.xygrib}",   "tooltip": false },
+      "custom/signalk":  { "format": "${glyph.signalk}", "on-click": "${launch.signalk}",  "tooltip": false },
+      "custom/browser":  { "format": "${glyph.web}",     "on-click": "${launch.browser}",  "tooltip": false },
+      "wlr/taskbar": {
+        "icon-size": 24,
+        "on-click": "activate",
+        "on-click-middle": "close",
+        "tooltip-format": "{title}"
+      },
+      "custom/bright-down": { "format": "${glyph.sun} −", "on-click": "${brightness "down"}", "tooltip": false },
+      "custom/bright-up":   { "format": "${glyph.sun} +", "on-click": "${brightness "up"}",   "tooltip": false },
       "clock":   { "format": "{:%a %d %b  %H:%M}" },
       "cpu":     { "format": "CPU {usage}%", "interval": 5 },
       "memory":  { "format": "RAM {percentage}%", "interval": 5 },
@@ -270,10 +313,10 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     }
   '';
 
-  # Dark bar, blue-accented launcher buttons with hover feedback.
+  # Dark bar with icon glyphs (Nerd Font), accent hover, and a window taskbar.
   environment.etc."xdg/waybar/style.css".text = ''
     * {
-      font-family: "DejaVu Sans", sans-serif;
+      font-family: "Symbols Nerd Font", "DejaVu Sans", sans-serif;
       font-size: 14px;
       border: none;
       border-radius: 0;
@@ -282,22 +325,34 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
       background-color: #1f2330;
       color: #e6e8ee;
     }
-    #custom-opencpn, #custom-xygrib, #custom-terminal,
-    #custom-notes, #custom-browser, #custom-signalk, #custom-files {
+    #custom-menu, #custom-opencpn, #custom-xygrib,
+    #custom-signalk, #custom-browser {
+      font-size: 18px;
       background-color: #2a2e3a;
       color: #ffffff;
-      padding: 2px 12px;
+      padding: 0 12px;
       margin: 4px 2px;
       border-radius: 6px;
     }
-    #custom-opencpn:hover, #custom-xygrib:hover, #custom-terminal:hover,
-    #custom-notes:hover, #custom-browser:hover, #custom-signalk:hover, #custom-files:hover {
+    #custom-menu {
+      background-color: ${accent};
+    }
+    #custom-menu:hover, #custom-opencpn:hover, #custom-xygrib:hover,
+    #custom-signalk:hover, #custom-browser:hover {
+      background-color: ${blue};
+    }
+    #taskbar button {
+      padding: 0 6px;
+      margin: 3px 1px;
+      border-radius: 6px;
+    }
+    #taskbar button.active {
       background-color: ${accent};
     }
     #custom-bright-down, #custom-bright-up {
       background-color: #2a2e3a;
       color: #ffffff;
-      padding: 2px 10px;
+      padding: 0 10px;
       margin: 4px 2px;
       border-radius: 6px;
     }
@@ -321,6 +376,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     pkgs.xwayland
     pkgs.pcmanfm
     pkgs.xfce.mousepad
+    pkgs.nwg-drawer
     pkgs.arc-theme
     pkgs.papirus-icon-theme
     pkgs.adwaita-icon-theme
@@ -330,7 +386,11 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     pkgs.wireplumber
     pkgs.gawk
     navBlueTheme
+    signalkDesktop
   ];
+
+  # Nerd Font symbols supply the panel glyphs (start, compass, cloud, …).
+  fonts.packages = [ pkgs.nerd-fonts.symbols-only ];
 
   # DDC/CI brightness needs unprivileged i2c access: the i2c group + udev rules
   # from hardware.i2c, with the session user added to that group.
