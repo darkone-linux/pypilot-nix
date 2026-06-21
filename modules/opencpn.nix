@@ -18,9 +18,11 @@ let
     mkIf
     mkOption
     mkEnableOption
-    concatStringsSep
     types
     ;
+
+  # Signal K hub port OpenCPN connects to (declared by the signalk module).
+  signalkPort = config.services.navigation.signalk.port or 3000;
 
   user = config.users.users.${cfg.user};
   home = user.home or "/home/${cfg.user}";
@@ -35,23 +37,24 @@ let
     ${cfg.extraConfig}
   '';
 
-  # When plugins are listed, wrap opencpn so the plugin .so files (and their
-  # data) living in their own store paths are discoverable: opencpn scans
-  # OPENCPN_PLUGIN_DIRS for `*.so` and XDG_DATA_DIRS for `opencpn/plugins/`
-  # (plugin_paths.cpp). symlinkJoin keeps the package's .desktop launcher and
-  # icon, so the wrapped binary stays the one launched from the desktop.
+  # OPENCPN_PLUGIN_DIRS *replaces* opencpn's default plugin search path
+  # (plugin_paths.cpp), so pointing it at the external plugins alone drops the
+  # bundled ones (grib, dashboard…) and the plugin list ends up empty. Fix: merge
+  # opencpn AND the plugins into one tree, then point the env at that single
+  # `lib/opencpn` (bundled + external together). XDG_DATA_DIRS gets the merged
+  # share so each plugin finds its data.
   opencpnPkg =
     if cfg.plugins == [ ] then
       cfg.package
     else
       pkgs.symlinkJoin {
         name = "opencpn-with-plugins";
-        paths = [ cfg.package ];
+        paths = [ cfg.package ] ++ cfg.plugins;
         nativeBuildInputs = [ pkgs.makeWrapper ];
         postBuild = ''
           wrapProgram $out/bin/opencpn \
-            --set OPENCPN_PLUGIN_DIRS "${concatStringsSep ":" (map (p: "${p}/lib/opencpn") cfg.plugins)}" \
-            --prefix XDG_DATA_DIRS : "${concatStringsSep ":" (map (p: "${p}/share") cfg.plugins)}"
+            --set OPENCPN_PLUGIN_DIRS "$out/lib/opencpn" \
+            --prefix XDG_DATA_DIRS : "$out/share"
         '';
       };
 in
@@ -91,11 +94,21 @@ in
 
     dataConnection = mkOption {
       type = types.str;
-      default = "0;2;localhost;${toString cfg.nmeaPort};0;0";
+
+      # 24-field ConnectionParams::Serialize (OpenCPN 5.12): Type;NetProtocol;
+      # addr;port;DataProtocol;serialPort;baud;checksum;ioSelect;inListType;
+      # inList;outListType;outList;prio;garmin;garminUp;furuno;enabled;comment;
+      # autoSKDiscover;socketCAN;noDataReconnect;disableEcho;authToken.
+      # Default: a Signal K connection to the local hub (NETWORK=1, SIGNALK=3,
+      # DataProtocol SIGNALK=2, enabled). Older 6-field strings are rejected as
+      # invalid by OpenCPN.
+      default = "1;3;localhost;${toString signalkPort};2;;0;0;0;0;;0;;0;0;0;0;1;Signal K;0;;0;0;";
+
       description = ''
-        Serialized opencpn.conf DataConnections entry (type;protocol;host;port;…).
-        Default follows the spec; complete/adjust on the bench for the installed
-        OpenCPN version.
+        Serialized opencpn.conf DataConnections entry (24 fields, OpenCPN 5.12
+        ConnectionParams format). Join multiple connections with `|`. The format
+        is version-sensitive: if a seeded value is rejected, create the connection
+        once in the GUI and copy its `DataConnections=` line here.
       '';
     };
 
@@ -107,7 +120,8 @@ in
   };
 
   config = mkIf cfg.enable {
-    environment.systemPackages = [ opencpnPkg ] ++ cfg.plugins;
+    # opencpnPkg already merges the plugins (symlinkJoin), so don't add them again.
+    environment.systemPackages = [ opencpnPkg ];
 
     # Create the config dir and copy the conf only when it does not yet exist
     # (tmpfiles `C`), leaving GUI-written settings untouched on later boots.
