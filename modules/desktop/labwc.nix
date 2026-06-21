@@ -107,19 +107,40 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     GTK_THEME=Arc-Dark
   '';
 
-  # labwc core config: NavBlue theme only — NO <keyboard>/<mouse> section on
-  # purpose. labwc loads its full default bindings (window drag, title-bar
-  # buttons, Alt+Tab, and right-click root → menu.xml) only when none are
-  # user-defined; declaring even one drops every default of that kind, which
-  # had broken moving windows and the min/max/close buttons.
+  # labwc core config: NavBlue theme + a <keyboard> section. Declaring any
+  # keybind disables labwc's built-in keyboard defaults, so we re-list the useful
+  # ones (window cycle, close, maximize, snap, client menu) next to the custom
+  # Ctrl+Alt launchers. We still declare NO <mouse> section, so default mouse
+  # bindings (drag-move, title-bar buttons, right-click root menu) stay intact.
   environment.etc."xdg/labwc/rc.xml".text = ''
     <?xml version="1.0"?>
     <labwc_config>
       <theme>
         <name>NavBlue</name>
         <cornerRadius>6</cornerRadius>
-        <font name="sans" size="11" />
+        <font name="sans" size="12" />
       </theme>
+      <keyboard>
+
+        <!-- labwc defaults worth keeping (lost the moment any keybind is set). -->
+        <keybind key="A-Tab"><action name="NextWindow" /></keybind>
+        <keybind key="A-S-Tab"><action name="PreviousWindow" /></keybind>
+        <keybind key="A-F4"><action name="Close" /></keybind>
+        <keybind key="W-a"><action name="ToggleMaximize" /></keybind>
+        <keybind key="W-Left"><action name="SnapToEdge" direction="left" combine="yes" /></keybind>
+        <keybind key="W-Right"><action name="SnapToEdge" direction="right" combine="yes" /></keybind>
+        <keybind key="W-Up"><action name="SnapToEdge" direction="up" combine="yes" /></keybind>
+        <keybind key="W-Down"><action name="SnapToEdge" direction="down" combine="yes" /></keybind>
+        <keybind key="A-Space"><action name="ShowMenu" menu="client-menu" atCursor="no" /></keybind>
+
+        <!-- Custom Ctrl+Alt launchers (slow apps reuse the notify wrappers). -->
+        <keybind key="C-A-t"><action name="Execute"><command>${bin.terminal}</command></action></keybind>
+        <keybind key="C-A-o"><action name="Execute"><command>${launch.opencpn}</command></action></keybind>
+        <keybind key="C-A-g"><action name="Execute"><command>${launch.xygrib}</command></action></keybind>
+        <keybind key="C-A-n"><action name="Execute"><command>${bin.notes}</command></action></keybind>
+        <keybind key="C-A-w"><action name="Execute"><command>${launch.browser}</command></action></keybind>
+        <keybind key="C-A-s"><action name="Execute"><command>${launch.signalk}</command></action></keybind>
+      </keyboard>
     </labwc_config>
   '';
 
@@ -157,7 +178,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     [Settings]
     gtk-theme-name=Arc-Dark
     gtk-icon-theme-name=Papirus-Dark
-    gtk-font-name=Sans 11
+    gtk-font-name=Sans 12
     gtk-cursor-theme-name=Adwaita
     gtk-cursor-theme-size=24
   '';
