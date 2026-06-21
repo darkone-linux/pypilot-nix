@@ -107,8 +107,11 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     GTK_THEME=Arc-Dark
   '';
 
-  # labwc core config: NavBlue theme, Super+Return = terminal, right-click root
-  # opens the categorized application menu.
+  # labwc core config: NavBlue theme only — NO <keyboard>/<mouse> section on
+  # purpose. labwc loads its full default bindings (window drag, title-bar
+  # buttons, Alt+Tab, and right-click root → menu.xml) only when none are
+  # user-defined; declaring even one drops every default of that kind, which
+  # had broken moving windows and the min/max/close buttons.
   environment.etc."xdg/labwc/rc.xml".text = ''
     <?xml version="1.0"?>
     <labwc_config>
@@ -117,18 +120,6 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
         <cornerRadius>6</cornerRadius>
         <font name="sans" size="11" />
       </theme>
-      <keyboard>
-        <keybind key="W-Return">
-          <action name="Execute" command="${bin.terminal}" />
-        </keybind>
-      </keyboard>
-      <mouse>
-        <context name="Root">
-          <mousebind button="Right" action="Press">
-            <action name="ShowMenu" menu="root-menu" />
-          </mousebind>
-        </context>
-      </mouse>
     </labwc_config>
   '';
 
