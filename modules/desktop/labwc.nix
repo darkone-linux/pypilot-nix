@@ -120,12 +120,14 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     )
     + "\n";
 
-  # Session env: keyboard follows the system, plus cursor + GTK theme hints.
+  # Session env: keyboard follows the system, cursor + GTK theme, and a dark Qt
+  # style so Qt apps (XyGrib) get visible, themed widgets instead of blank ones.
   environment.etc."xdg/labwc/environment".text = ''
     XKB_DEFAULT_LAYOUT=${config.services.xserver.xkb.layout}
     XCURSOR_THEME=Adwaita
     XCURSOR_SIZE=24
     GTK_THEME=Arc-Dark
+    QT_STYLE_OVERRIDE=Adwaita-Dark
   '';
 
   # labwc core config: NavBlue theme + a <keyboard> section. Declaring any
@@ -169,6 +171,18 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
         <keybind key="XF86_AudioLowerVolume"><action name="Execute"><command>${vol.down}</command></action></keybind>
         <keybind key="XF86_AudioMute"><action name="Execute"><command>${vol.mute}</command></action></keybind>
       </keyboard>
+
+      <mouse>
+
+        <!-- Keep every default mouse binding, then narrow the desktop: only a
+             RIGHT click opens the menu (default also bound it to left/middle). -->
+        <default />
+        <context name="Root">
+          <mousebind button="Right" action="Press">
+            <action name="ShowMenu" menu="root-menu" />
+          </mousebind>
+        </context>
+      </mouse>
     </labwc_config>
   '';
 
@@ -231,7 +245,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
       "spacing": 6,
       "modules-left": [
         "custom/opencpn", "custom/xygrib", "custom/terminal",
-        "custom/notes", "custom/browser", "custom/signalk"
+        "custom/notes", "custom/browser", "custom/signalk", "custom/files"
       ],
       "modules-center": [ "clock" ],
       "modules-right": [ "custom/bright-down", "custom/bright-up", "cpu", "memory", "network", "tray" ],
@@ -243,6 +257,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
       "custom/notes":    { "format": "Notes",    "on-click": "${launch.notes}",    "tooltip": false },
       "custom/browser":  { "format": "Web",      "on-click": "${launch.browser}",  "tooltip": false },
       "custom/signalk":  { "format": "SignalK",  "on-click": "${launch.signalk}",  "tooltip": false },
+      "custom/files":    { "format": "Fichiers", "on-click": "${launch.files}",    "tooltip": false },
       "clock":   { "format": "{:%a %d %b  %H:%M}" },
       "cpu":     { "format": "CPU {usage}%", "interval": 5 },
       "memory":  { "format": "RAM {percentage}%", "interval": 5 },
@@ -268,7 +283,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
       color: #e6e8ee;
     }
     #custom-opencpn, #custom-xygrib, #custom-terminal,
-    #custom-notes, #custom-browser, #custom-signalk {
+    #custom-notes, #custom-browser, #custom-signalk, #custom-files {
       background-color: #2a2e3a;
       color: #ffffff;
       padding: 2px 12px;
@@ -276,7 +291,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
       border-radius: 6px;
     }
     #custom-opencpn:hover, #custom-xygrib:hover, #custom-terminal:hover,
-    #custom-notes:hover, #custom-browser:hover, #custom-signalk:hover {
+    #custom-notes:hover, #custom-browser:hover, #custom-signalk:hover, #custom-files:hover {
       background-color: ${accent};
     }
     #custom-bright-down, #custom-bright-up {
@@ -309,6 +324,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     pkgs.arc-theme
     pkgs.papirus-icon-theme
     pkgs.adwaita-icon-theme
+    pkgs.adwaita-qt
     pkgs.font-awesome
     pkgs.ddcutil
     pkgs.wireplumber

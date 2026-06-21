@@ -102,6 +102,28 @@ in
 
         hardware.graphics.enable = mkDefault true;
         fonts.packages = [ pkgs.dejavu_fonts ];
+
+        # HDMI/onboard audio: PipeWire + the session user in `audio` so
+        # wireplumber can open the ALSA cards (greetd autologin grants no
+        # device ACLs, so the group membership is what unlocks them).
+        services.pipewire = {
+          enable = mkDefault true;
+          alsa.enable = mkDefault true;
+          pulse.enable = mkDefault true;
+
+          # Prefer HDMI for output: bump any HDMI sink above the analog jack so
+          # it becomes the default the volume keys and apps drive.
+          wireplumber.extraConfig."51-hdmi-default" = {
+            "monitor.alsa.rules" = [
+              {
+                matches = [ { "node.name" = "~alsa_output.*hdmi.*"; } ];
+                actions.update-props."priority.session" = 2000;
+              }
+            ];
+          };
+        };
+        security.rtkit.enable = mkDefault true;
+        users.users.${cfg.user}.extraGroups = [ "audio" ];
       }
 
       # ---- always-on (compositor-agnostic) ----
