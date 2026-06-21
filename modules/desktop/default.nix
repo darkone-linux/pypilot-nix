@@ -75,6 +75,15 @@ in
       example = [ "chromium --kiosk http://localhost:3000" ];
       description = "Extra shell commands appended to the session autostart.";
     };
+
+    brightnessBus = mkOption {
+      type = types.int;
+      default = 20;
+
+      # HDMI screens have no /sys backlight; brightness goes over DDC/CI (i2c).
+      # Pinning the bus keeps ddcutil off the HAT's i2c-1. Pi 4: HDMI0=20, HDMI1=21.
+      description = "i2c bus of the HDMI display for DDC/CI brightness (ddcutil --bus).";
+    };
   };
 
   config = mkIf cfg.enable (

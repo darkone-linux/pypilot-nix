@@ -6,6 +6,8 @@
 # of launcher buttons (OpenCPN, GRIB, terminal, notes, browser, SignalK). A
 # right-click root menu lists every app by category. Slow apps (OpenCPN, browser)
 # pop a "starting…" notification (mako) so the helmsman doesn't click twice.
+# Media keys + waybar buttons drive screen brightness over DDC/CI (ddcutil) and
+# volume via PipeWire (wpctl) — brightness matters for day/night navigation.
 
 {
   config,
@@ -62,6 +64,25 @@ let
     files = bin.files;
     pdf = bin.pdf;
     vlc = bin.vlc;
+  };
+
+  # Brightness over DDC/CI (no /sys backlight on HDMI). Bus is pinned so ddcutil
+  # never probes the HAT's i2c-1; each press nudges VCP 0x10 and shows the value.
+  brightness =
+    dir:
+    "${pkgs.writeShellScript "brightness-${dir}" ''
+      bus=${toString cfg.brightnessBus}
+      ${pkgs.ddcutil}/bin/ddcutil --bus "$bus" --noverify setvcp 10 ${if dir == "up" then "+" else "-"} 10
+      val=$(${pkgs.ddcutil}/bin/ddcutil --bus "$bus" --brief getvcp 10 | ${pkgs.gawk}/bin/awk '{print $4}')
+      ${pkgs.libnotify}/bin/notify-send -t 1500 "Luminosité" "''${val}%" || true
+    ''}";
+
+  # Volume via PipeWire's wpctl (capped at 100%). Works once a sink exists.
+  wpctl = "${pkgs.wireplumber}/bin/wpctl";
+  vol = {
+    up = "${wpctl} set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+";
+    down = "${wpctl} set-volume @DEFAULT_AUDIO_SINK@ 5%-";
+    mute = "${wpctl} set-mute @DEFAULT_AUDIO_SINK@ toggle";
   };
 
   # labwc window decorations: dark, with the darker blue accent on focus.
@@ -140,6 +161,13 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
         <keybind key="C-A-n"><action name="Execute"><command>${bin.notes}</command></action></keybind>
         <keybind key="C-A-w"><action name="Execute"><command>${launch.browser}</command></action></keybind>
         <keybind key="C-A-s"><action name="Execute"><command>${launch.signalk}</command></action></keybind>
+
+        <!-- Brightness (DDC/CI) and volume (PipeWire) media keys. -->
+        <keybind key="XF86_MonBrightnessUp"><action name="Execute"><command>${brightness "up"}</command></action></keybind>
+        <keybind key="XF86_MonBrightnessDown"><action name="Execute"><command>${brightness "down"}</command></action></keybind>
+        <keybind key="XF86_AudioRaiseVolume"><action name="Execute"><command>${vol.up}</command></action></keybind>
+        <keybind key="XF86_AudioLowerVolume"><action name="Execute"><command>${vol.down}</command></action></keybind>
+        <keybind key="XF86_AudioMute"><action name="Execute"><command>${vol.mute}</command></action></keybind>
       </keyboard>
     </labwc_config>
   '';
@@ -206,7 +234,9 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
         "custom/notes", "custom/browser", "custom/signalk"
       ],
       "modules-center": [ "clock" ],
-      "modules-right": [ "cpu", "memory", "network", "tray" ],
+      "modules-right": [ "custom/bright-down", "custom/bright-up", "cpu", "memory", "network", "tray" ],
+      "custom/bright-down": { "format": "☀ −", "on-click": "${brightness "down"}", "tooltip": false },
+      "custom/bright-up":   { "format": "☀ +", "on-click": "${brightness "up"}",   "tooltip": false },
       "custom/opencpn":  { "format": "OpenCPN",  "on-click": "${launch.opencpn}",  "tooltip": false },
       "custom/xygrib":   { "format": "GRIB",     "on-click": "${launch.xygrib}",   "tooltip": false },
       "custom/terminal": { "format": "Terminal", "on-click": "${launch.terminal}", "tooltip": false },
@@ -249,6 +279,16 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     #custom-notes:hover, #custom-browser:hover, #custom-signalk:hover {
       background-color: ${accent};
     }
+    #custom-bright-down, #custom-bright-up {
+      background-color: #2a2e3a;
+      color: #ffffff;
+      padding: 2px 10px;
+      margin: 4px 2px;
+      border-radius: 6px;
+    }
+    #custom-bright-down:hover, #custom-bright-up:hover {
+      background-color: ${accent};
+    }
     #clock { font-weight: bold; }
     #cpu, #memory, #network, #tray {
       padding: 0 10px;
@@ -270,8 +310,16 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     pkgs.papirus-icon-theme
     pkgs.adwaita-icon-theme
     pkgs.font-awesome
+    pkgs.ddcutil
+    pkgs.wireplumber
+    pkgs.gawk
     navBlueTheme
   ];
+
+  # DDC/CI brightness needs unprivileged i2c access: the i2c group + udev rules
+  # from hardware.i2c, with the session user added to that group.
+  hardware.i2c.enable = lib.mkDefault true;
+  users.users.${cfg.user}.extraGroups = [ "i2c" ];
 
   # Autologin into labwc at boot; agreety covers a manual re-login.
   services.greetd = {
