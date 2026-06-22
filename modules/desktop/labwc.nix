@@ -3,8 +3,9 @@
 # Active only when `compositor == "labwc"`. Builds a polished single-screen
 # appliance: solid blue background (swaybg), dark labwc window theme (NavBlue),
 # Arc-Dark/Papirus for GTK apps. The waybar top panel has a start-menu button
-# (nwg-drawer, full-screen categorized app grid), quick-launch icon glyphs, and
-# a window taskbar; the right-click root menu lists apps by category with icons.
+# (nwg-drawer, full-screen flat app grid), quick-launch icon glyphs (with
+# tooltips), and a window taskbar; the right-click root menu groups apps under
+# Applications and PyPilot submenus with icons.
 # Slow apps (OpenCPN, browser) pop a "starting…" notification (mako) so the
 # helmsman doesn't click twice. Media keys + waybar buttons drive screen
 # brightness over DDC/CI (ddcutil) and volume via PipeWire (wpctl) — brightness
@@ -20,6 +21,7 @@
 let
   cfg = config.services.navigation.desktop;
   opencpn = config.services.navigation.opencpn;
+  pypilot = config.services.navigation.pypilot;
   inherit (lib)
     mkIf
     concatStringsSep
@@ -42,6 +44,13 @@ let
     files = "${pkgs.pcmanfm}/bin/pcmanfm";
     pdf = "${pkgs.evince}/bin/evince";
     vlc = "${pkgs.vlc}/bin/vlc";
+
+    # PyPilot front-ends: three wx GUIs from the daemon package, plus its web UI
+    # (served by pypilot_web on :8000) shown in a Chromium app window.
+    pypilotControl = "${pypilot.package}/bin/pypilot_control";
+    pypilotCalibration = "${pypilot.package}/bin/pypilot_calibration";
+    pypilotClient = "${pypilot.package}/bin/pypilot_client_wx";
+    pypilotWeb = "${pkgs.chromium}/bin/chromium --app=http://localhost:8000/";
   };
 
   # nwg-drawer: full-screen categorized app grid (the start menu). Run resident
@@ -83,7 +92,30 @@ let
     files = bin.files;
     pdf = bin.pdf;
     vlc = bin.vlc;
+    pypilotControl = notify "pypilot-control" "PyPilot Control" bin.pypilotControl;
+    pypilotCalibration = notify "pypilot-calibration" "PyPilot Calibration" bin.pypilotCalibration;
+    pypilotClient = notify "pypilot-client" "PyPilot Client" bin.pypilotClient;
+    pypilotWeb = notify "pypilot-web" "PyPilot Web" bin.pypilotWeb;
   };
+
+  # Desktop-entry overrides that hide helper/dev launchers from the drawer grid.
+  # A same-named entry placed earlier in XDG_DATA_DIRS wins nwg-drawer's de-dup
+  # (first id seen) and carries NoDisplay=true, so the real entry stays hidden.
+  hiddenAppIds = [
+    "vim.desktop"
+    "gvim.desktop"
+    "nixos-manual.desktop"
+    "foot-server.desktop"
+    "footclient.desktop"
+    "pcmanfm-desktop-pref.desktop"
+  ];
+  hiddenDesktops = pkgs.runCommand "nwg-hidden-desktops" { } ''
+    mkdir -p "$out/share/applications"
+    for id in ${concatStringsSep " " hiddenAppIds}; do
+      printf '[Desktop Entry]\nType=Application\nNoDisplay=true\n' \
+        > "$out/share/applications/$id"
+    done
+  '';
 
   # Brightness over DDC/CI (no /sys backlight on HDMI). Bus is pinned so ddcutil
   # never probes the HAT's i2c-1; each press nudges VCP 0x10 and shows the value.
@@ -146,7 +178,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
         "${pkgs.swaybg}/bin/swaybg -c '${blue}' >/dev/null 2>&1 &"
         "${pkgs.mako}/bin/mako >/dev/null 2>&1 &"
         "${pkgs.waybar}/bin/waybar >/dev/null 2>&1 &"
-        "${nwgDrawer} -r -fm ${pkgs.pcmanfm}/bin/pcmanfm -term ${pkgs.foot}/bin/foot -is 64 -c 6 >/dev/null 2>&1 &"
+        "XDG_DATA_DIRS=${hiddenDesktops}/share:$XDG_DATA_DIRS ${nwgDrawer} -r -nocats -fm ${pkgs.pcmanfm}/bin/pcmanfm -term ${pkgs.foot}/bin/foot -is 64 -c 6 >/dev/null 2>&1 &"
       ]
       ++ optional (opencpn.enable && cfg.autostartOpencpn) "${bin.opencpn} &"
       ++ cfg.autostart
@@ -173,6 +205,10 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     <labwc_config>
       <theme>
         <name>NavBlue</name>
+
+        <!-- Icon theme for the right-click menu; app icons (opencpn, xygrib,
+             chromium) fall back to hicolor. -->
+        <icon>Papirus-Dark</icon>
         <cornerRadius>6</cornerRadius>
         <font name="sans" size="12" />
       </theme>
@@ -226,12 +262,26 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     </labwc_config>
   '';
 
-  # Minimal right-click menu: apps live in the start menu (nwg-drawer), so the
-  # desktop menu only carries session actions.
+  # Right-click menu: the top-left quick-launch apps under "Applications", the
+  # autopilot front-ends under "PyPilot", then session actions. Icons resolve via
+  # the Papirus-Dark/hicolor theme set in rc.xml.
   environment.etc."xdg/labwc/menu.xml".text = ''
     <?xml version="1.0" encoding="UTF-8"?>
     <openbox_menu>
       <menu id="root-menu" label="Menu">
+        <menu id="apps-menu" label="Applications" icon="view-grid">
+          <item label="OpenCPN" icon="opencpn"><action name="Execute"><command>${launch.opencpn}</command></action></item>
+          <item label="XyGrib" icon="xygrib"><action name="Execute"><command>${launch.xygrib}</command></action></item>
+          <item label="SignalK" icon="network-server"><action name="Execute"><command>${launch.signalk}</command></action></item>
+          <item label="Navigateur" icon="chromium"><action name="Execute"><command>${launch.browser}</command></action></item>
+        </menu>
+        <menu id="pypilot-menu" label="PyPilot" icon="compass">
+          <item label="Control" icon="input-gaming"><action name="Execute"><command>${launch.pypilotControl}</command></action></item>
+          <item label="Calibration" icon="gps"><action name="Execute"><command>${launch.pypilotCalibration}</command></action></item>
+          <item label="Client" icon="preferences-other"><action name="Execute"><command>${launch.pypilotClient}</command></action></item>
+          <item label="Web" icon="web-browser"><action name="Execute"><command>${launch.pypilotWeb}</command></action></item>
+        </menu>
+        <separator />
         <item label="Recharger labwc"><action name="Reconfigure" /></item>
         <item label="Quitter la session"><action name="Exit" /></item>
       </menu>
@@ -274,11 +324,11 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
       ],
       "modules-center": [ "clock" ],
       "modules-right": [ "custom/bright-down", "custom/bright-up", "cpu", "memory", "network", "tray" ],
-      "custom/menu":     { "format": "${glyph.menu}",    "on-click": "${nwgDrawer}",       "tooltip": false },
-      "custom/opencpn":  { "format": "${glyph.opencpn}", "on-click": "${launch.opencpn}",  "tooltip": false },
-      "custom/xygrib":   { "format": "${glyph.grib}",    "on-click": "${launch.xygrib}",   "tooltip": false },
-      "custom/signalk":  { "format": "${glyph.signalk}", "on-click": "${launch.signalk}",  "tooltip": false },
-      "custom/browser":  { "format": "${glyph.web}",     "on-click": "${launch.browser}",  "tooltip": false },
+      "custom/menu":     { "format": "${glyph.menu}",    "on-click": "${nwgDrawer}",       "tooltip": true, "tooltip-format": "Applications" },
+      "custom/opencpn":  { "format": "${glyph.opencpn}", "on-click": "${launch.opencpn}",  "tooltip": true, "tooltip-format": "OpenCPN" },
+      "custom/xygrib":   { "format": "${glyph.grib}",    "on-click": "${launch.xygrib}",   "tooltip": true, "tooltip-format": "XyGrib" },
+      "custom/signalk":  { "format": "${glyph.signalk}", "on-click": "${launch.signalk}",  "tooltip": true, "tooltip-format": "SignalK" },
+      "custom/browser":  { "format": "${glyph.web}",     "on-click": "${launch.browser}",  "tooltip": true, "tooltip-format": "Navigateur" },
       "wlr/taskbar": {
         "icon-size": 24,
         "on-click": "activate",
