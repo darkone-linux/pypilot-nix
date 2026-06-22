@@ -34,6 +34,9 @@ let
   confFile = pkgs.writeText "opencpn.conf" ''
     [Settings/NMEADataSource]
     DataConnections=${cfg.dataConnection}
+
+    [PlugIns]
+    CatalogExpert=1
     ${cfg.extraConfig}
   '';
 
@@ -67,6 +70,18 @@ in
       default = pkgs.opencpn;
       defaultText = lib.literalExpression "pkgs.opencpn";
       description = "OpenCPN package.";
+    };
+
+    finalPackage = mkOption {
+      type = types.package;
+      readOnly = true;
+      default = opencpnPkg;
+      defaultText = lib.literalExpression "<package> (cfg.package wrapped with plugins)";
+
+      # The bare cfg.package binary ignores OPENCPN_PLUGIN_DIRS; only this
+      # wrapper sets it. Everything that launches OpenCPN (desktop buttons,
+      # autostart, keybinds) MUST use finalPackage, else plugins vanish.
+      description = "OpenCPN package actually launched: cfg.package, wrapped with the merged plugin search path when plugins are set.";
     };
 
     user = mkOption {

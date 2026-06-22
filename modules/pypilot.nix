@@ -124,6 +124,16 @@ in
 
   config = mkIf cfg.enable {
 
+    # Expose pypilot_* (client, scope, calibration…) on the CLI; the daemon runs
+    # from its store path, so without this nothing pypilot is on PATH.
+    environment.systemPackages = [ cfg.package ];
+
+    # pypilot_pi (OpenCPN plugin) connects to the bare hostname "pypilot" when
+    # no host is configured (pypilot_client.cpp: host.empty() -> "pypilot").
+    # Co-located here, so resolve it to loopback; else the plugin stays
+    # "Disconnected" despite the server listening on 23322.
+    networking.hosts."127.0.0.1" = [ "pypilot" ];
+
     # Auto-provision the default service account only; a custom user is the
     # host's responsibility.
     users.users.${cfg.user} = mkIf (cfg.user == "pypilot") {

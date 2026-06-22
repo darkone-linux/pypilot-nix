@@ -13,30 +13,46 @@
   pkg-config,
   libgpiod,
 
-  # Core runtime dependencies.
+  # Python deps mirror upstream dependencies.py (pinned src rev). System-only
+  # entries there (libpython3-dev, swig, wiringpi, gettext) are Nix build inputs
+  # instead; wiringpi is replaced by gpiod for the HAT.
+
+  # Core autopilot (scipy: extra, used by the calibration fit).
   pyserial,
   numpy,
   scipy,
-  zeroconf,
   rtimulib2,
   pypilot-data,
 
-  # server.py watches its config file via inotify.adapters; without it the
-  # server falls back to noisy 20 s polling ("No module named 'inotify'").
+  # Optimize: faster JSON, udev serial discovery, and inotify config watch
+  # (without it the server falls back to noisy 20 s polling).
+  ujson,
+  pyudev,
   inotify,
 
-  # HAT control head (pypilot_hat): libgpiod v2 bindings + LCD image rendering.
-  gpiod,
-  pillow,
-
-  # signalk + web UI dependencies (pyproject optional groups, enabled here so
-  # the daemon and its web interface are usable out of the box).
+  # SignalK + web UI.
+  zeroconf,
   requests,
   websocket-client,
   flask,
   gevent-websocket,
   python-socketio,
   flask-socketio,
+  flask-babel,
+
+  # HAT control head (pypilot_hat): libgpiod v2 bindings + LCD image rendering.
+  gpiod,
+  pillow,
+
+  # GUI clients (pypilot_calibration/scope/client_wx/control): wx, OpenGL, and
+  # the calibration sphere mesh (pyglet + pywavefront).
+  wxpython,
+  pyopengl,
+  pyglet,
+  pywavefront,
+
+  # Version lookup at import time.
+  importlib-metadata,
 }:
 
 buildPythonPackage rec {
@@ -92,18 +108,36 @@ buildPythonPackage rec {
     pyserial
     numpy
     scipy
-    zeroconf
     rtimulib2
     pypilot-data
+    ujson
+    pyudev
     inotify
-    gpiod
-    pillow
+    zeroconf
     requests
     websocket-client
     flask
     gevent-websocket
     python-socketio
     flask-socketio
+    flask-babel
+    gpiod
+    pillow
+    wxpython
+    pyopengl
+    pyglet
+    pywavefront
+    importlib-metadata
+  ];
+
+  # Pi 4 GPU (V3D) exposes only desktop GL 3.1; pyglet (pypilot_calibration /
+  # pypilot_scope 3D views) needs >= 3.3 and dies with "Could not create GL
+  # context". Force the llvmpipe software renderer (GL 4.5). No-op for the
+  # non-GL tools (daemon, web, hat).
+  makeWrapperArgs = [
+    "--set"
+    "LIBGL_ALWAYS_SOFTWARE"
+    "1"
   ];
 
   # Smoke-test that the SWIG extensions load (per the test strategy, level 1).

@@ -2,12 +2,15 @@
   description = "pypilot-nix — declarative NixOS marine navigation distribution";
 
   inputs = {
+    # Track nixpkgs-unstable for the marine packages, dev shells and lab VM.
+    # Decoupled from nixos-raspberrypi's pin: the Pi hosts still build their
+    # kernel/firmware against the vendor nixpkgs (brought by its nixosSystem).
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+
     # Vendor-firmware Raspberry Pi base: real config.txt + device-tree overlays
     # (DTBs ship __symbols__), so dtparam=spi/i2c and dtoverlay actually apply —
-    # what the generic SD image could not do. It pins its own nixpkgs; we follow
-    # it so the marine packages build against the very nixpkgs the Pi hosts use.
+    # what the generic SD image could not do.
     nixos-raspberrypi.url = "github:nvmd/nixos-raspberrypi";
-    nixpkgs.follows = "nixos-raspberrypi/nixpkgs";
   };
 
   outputs =

@@ -33,7 +33,7 @@ let
 
   # Raw binaries, full store paths (waybar/labwc inherit no PATH).
   bin = {
-    opencpn = "${opencpn.package}/bin/opencpn";
+    opencpn = "${opencpn.finalPackage}/bin/opencpn";
     xygrib = "${pkgs.xygrib}/bin/xygrib";
     terminal = "${pkgs.foot}/bin/foot";
     notes = "${pkgs.xfce.mousepad}/bin/mousepad";
