@@ -9,7 +9,7 @@
 let
   # The nodes need the custom packages; apply the overlay here since
   # navigation.nix no longer sets nixpkgs.overlays itself.
-  navPkgs = pkgs.extend (final: _prev: import ../pkgs final);
+  navPkgs = pkgs.extend (import ../pkgs);
 in
 navPkgs.testers.runNixOSTest {
   name = "navigation-integration";
