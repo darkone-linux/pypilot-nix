@@ -329,7 +329,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
         "custom/signalk", "custom/browser", "wlr/taskbar"
       ],
       "modules-center": [ "clock" ],
-      "modules-right": [ "custom/bright-down", "custom/bright-up", "cpu", "memory", "network", "tray" ],
+      "modules-right": [ "custom/bright-down", "custom/bright-up", "cpu", "memory", "temperature", "network", "tray" ],
       "custom/menu":     { "format": "${glyph.menu}",    "on-click": "${nwgDrawer}",       "tooltip": true, "tooltip-format": "Applications" },
       "custom/terminal": { "format": "${glyph.terminal}", "on-click": "${launch.terminal}", "tooltip": true, "tooltip-format": "Terminal" },
       "custom/opencpn":  { "format": "${glyph.opencpn}", "on-click": "${launch.opencpn}",  "tooltip": true, "tooltip-format": "OpenCPN" },
@@ -347,6 +347,8 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
       "clock":   { "format": "{:%a %d %b  %H:%M}" },
       "cpu":     { "format": "CPU {usage}%", "interval": 5 },
       "memory":  { "format": "RAM {percentage}%", "interval": 5 },
+
+      "temperature": { "thermal-zone": 0, "format": "T° {temperatureC}°C", "interval": 5 },
       "network": {
         "format-wifi": "{essid}",
         "format-ethernet": "{ifname}",
@@ -403,7 +405,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
       background-color: ${accent};
     }
     #clock { font-weight: bold; }
-    #cpu, #memory, #network, #tray {
+    #cpu, #memory, #temperature, #network, #tray {
       padding: 0 10px;
       color: #b8bccb;
     }
