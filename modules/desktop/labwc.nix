@@ -69,6 +69,7 @@ let
     grib = faGlyph "f0c2";
     signalk = faGlyph "f012";
     web = faGlyph "f0ac";
+    moon = faGlyph "f186";
     sun = faGlyph "f185";
   };
 
@@ -283,8 +284,8 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
           <item label="Web" icon="web-browser"><action name="Execute"><command>${launch.pypilotWeb}</command></action></item>
         </menu>
         <separator />
-        <item label="Recharger labwc"><action name="Reconfigure" /></item>
-        <item label="Quitter la session"><action name="Exit" /></item>
+        <item label="Recharger labwc" icon="view-refresh"><action name="Reconfigure" /></item>
+        <item label="Quitter la session" icon="system-log-out"><action name="Exit" /></item>
 
         <!-- logind allows reboot/poweroff for the active local session (polkit). -->
         <item label="Redémarrer" icon="system-reboot"><action name="Execute"><command>${pkgs.systemd}/bin/systemctl reboot</command></action></item>
@@ -341,8 +342,8 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
         "on-click-middle": "close",
         "tooltip-format": "{title}"
       },
-      "custom/bright-down": { "format": "${glyph.sun} −", "on-click": "${brightness "down"}", "tooltip": false },
-      "custom/bright-up":   { "format": "${glyph.sun} +", "on-click": "${brightness "up"}",   "tooltip": false },
+      "custom/bright-down": { "format": "${glyph.moon}", "on-click": "${brightness "down"}", "tooltip": true, "tooltip-format": "Luminosité −" },
+      "custom/bright-up":   { "format": "${glyph.sun}",  "on-click": "${brightness "up"}",   "tooltip": true, "tooltip-format": "Luminosité +" },
       "clock":   { "format": "{:%a %d %b  %H:%M}" },
       "cpu":     { "format": "CPU {usage}%", "interval": 5 },
       "memory":  { "format": "RAM {percentage}%", "interval": 5 },
