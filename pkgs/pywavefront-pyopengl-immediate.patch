@@ -1,0 +1,56 @@
+--- a/pywavefront/visualization.py	2026-06-22 21:15:04.266079790 -0200
++++ b/pywavefront/visualization.py	2026-06-22 21:15:27.503624962 -0200
+@@ -32,7 +32,10 @@
+ # POSSIBILITY OF SUCH DAMAGE.
+ # ----------------------------------------------------------------------------
+ import pyglet
+-from pyglet.gl import *
++
++# pyglet 2.x dropped the legacy fixed-function symbols (GL_V3F, glInterleaved-
++# Arrays, …); source them from PyOpenGL, used in the same GL context.
++from OpenGL.GL import *
+ 
+ from pywavefront import Wavefront
+ from pywavefront.mesh import Mesh
+@@ -114,8 +117,39 @@
+         glDisable(GL_LIGHTING)
+         glColor4f(*material.ambient)
+ 
+-    glInterleavedArrays(vertex_format, 0, material.gl_floats)
+-    glDrawArrays(GL_TRIANGLES, 0, int(material.triangle_count))
++    # PyOpenGL's glInterleavedArrays wrapper resolves to a NoneType call here, so
++    # emit the interleaved buffer in immediate mode, compiled once into a display
++    # list (~10k verts repainted live; recompiling each paint would be wasteful).
++    display_list = getattr(material, '_pypilot_display_list', None)
++    if display_list is None:
++        verts = material.vertices
++        vsize = material.vertex_size
++        parts = material.vertex_format.split('_')
++        display_list = glGenLists(1)
++        glNewList(display_list, GL_COMPILE)
++        glBegin(GL_TRIANGLES)
++        for base in range(0, len(verts), vsize):
++            offset = base
++            for part in parts:
++
++                # V3F comes last per format, so it emits the vertex with the
++                # current normal/color/texcoord already set.
++                if part == 'T2F':
++                    glTexCoord2f(verts[offset], verts[offset + 1])
++                    offset += 2
++                elif part == 'C3F':
++                    glColor3f(verts[offset], verts[offset + 1], verts[offset + 2])
++                    offset += 3
++                elif part == 'N3F':
++                    glNormal3f(verts[offset], verts[offset + 1], verts[offset + 2])
++                    offset += 3
++                elif part == 'V3F':
++                    glVertex3f(verts[offset], verts[offset + 1], verts[offset + 2])
++                    offset += 3
++        glEnd()
++        glEndList()
++        material._pypilot_display_list = display_list
++    glCallList(display_list)
+ 
+     glPopAttrib()
+     glPopClientAttrib()

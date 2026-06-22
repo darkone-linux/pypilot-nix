@@ -10,12 +10,24 @@ let
 
   rtimulib2 = py.callPackage ./rtimulib2.nix { };
   pypilot-data = py.callPackage ./pypilot-data.nix { };
+
+  # visualization.py pulls the legacy fixed-function GL symbols (GL_V3F,
+  # glInterleavedArrays, …) from pyglet, which dropped them in 2.x — import dies
+  # with "name 'GL_V3F' is not defined" and pypilot's boat plot silently
+  # degrades. The patch sources GL from PyOpenGL (the context pypilot already
+  # draws in) and replaces the unusable glInterleavedArrays path with an
+  # immediate-mode display list.
+  pywavefront = py.pywavefront.overridePythonAttrs (old: {
+    dependencies = (old.dependencies or [ ]) ++ [ py.pyopengl ];
+
+    patches = (old.patches or [ ]) ++ [ ./pywavefront-pyopengl-immediate.patch ];
+  });
 in
 {
   inherit rtimulib2 pypilot-data;
 
   pypilot = py.callPackage ./pypilot.nix {
-    inherit rtimulib2 pypilot-data;
+    inherit rtimulib2 pypilot-data pywavefront;
 
     # `libgpiod` resolves to the python binding under py.callPackage; pin the C
     # library (SWIG GPIO build) explicitly, and pass the binding as `gpiod`
