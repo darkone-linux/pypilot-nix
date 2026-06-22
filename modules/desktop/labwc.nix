@@ -64,6 +64,7 @@ let
   faGlyph = code: builtins.fromJSON ''"\u${code}"'';
   glyph = {
     menu = faGlyph "f00a";
+    terminal = faGlyph "f120";
     opencpn = faGlyph "f14e";
     grib = faGlyph "f0c2";
     signalk = faGlyph "f012";
@@ -284,6 +285,10 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
         <separator />
         <item label="Recharger labwc"><action name="Reconfigure" /></item>
         <item label="Quitter la session"><action name="Exit" /></item>
+
+        <!-- logind allows reboot/poweroff for the active local session (polkit). -->
+        <item label="Redémarrer" icon="system-reboot"><action name="Execute"><command>${pkgs.systemd}/bin/systemctl reboot</command></action></item>
+        <item label="Éteindre" icon="system-shutdown"><action name="Execute"><command>${pkgs.systemd}/bin/systemctl poweroff</command></action></item>
       </menu>
     </openbox_menu>
   '';
@@ -319,12 +324,13 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
       "height": 40,
       "spacing": 4,
       "modules-left": [
-        "custom/menu", "custom/opencpn", "custom/xygrib",
+        "custom/menu", "custom/terminal", "custom/opencpn", "custom/xygrib",
         "custom/signalk", "custom/browser", "wlr/taskbar"
       ],
       "modules-center": [ "clock" ],
       "modules-right": [ "custom/bright-down", "custom/bright-up", "cpu", "memory", "network", "tray" ],
       "custom/menu":     { "format": "${glyph.menu}",    "on-click": "${nwgDrawer}",       "tooltip": true, "tooltip-format": "Applications" },
+      "custom/terminal": { "format": "${glyph.terminal}", "on-click": "${launch.terminal}", "tooltip": true, "tooltip-format": "Terminal" },
       "custom/opencpn":  { "format": "${glyph.opencpn}", "on-click": "${launch.opencpn}",  "tooltip": true, "tooltip-format": "OpenCPN" },
       "custom/xygrib":   { "format": "${glyph.grib}",    "on-click": "${launch.xygrib}",   "tooltip": true, "tooltip-format": "XyGrib" },
       "custom/signalk":  { "format": "${glyph.signalk}", "on-click": "${launch.signalk}",  "tooltip": true, "tooltip-format": "SignalK" },
@@ -361,7 +367,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
       background-color: #1f2330;
       color: #e6e8ee;
     }
-    #custom-menu, #custom-opencpn, #custom-xygrib,
+    #custom-menu, #custom-terminal, #custom-opencpn, #custom-xygrib,
     #custom-signalk, #custom-browser {
       font-size: 18px;
       background-color: #2a2e3a;
@@ -373,7 +379,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     #custom-menu {
       background-color: ${accent};
     }
-    #custom-menu:hover, #custom-opencpn:hover, #custom-xygrib:hover,
+    #custom-menu:hover, #custom-terminal:hover, #custom-opencpn:hover, #custom-xygrib:hover,
     #custom-signalk:hover, #custom-browser:hover {
       background-color: ${blue};
     }
