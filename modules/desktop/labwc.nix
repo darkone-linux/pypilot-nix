@@ -270,32 +270,33 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
   '';
 
   # Right-click menu: the top-left quick-launch apps under "Applications", the
-  # autopilot front-ends under "PyPilot", then session actions. Icons resolve via
-  # the Papirus-Dark/hicolor theme set in rc.xml.
+  # autopilot front-ends under "PyPilot", utilities under "Outils", then session
+  # actions. All-colour icon set: real app logos where they exist, otherwise a
+  # related colourful icon from Papirus' apps/ set (never the mono action/device
+  # glyphs) — keeps the menu visually uniform. Resolved via Papirus-Dark/hicolor.
   environment.etc."xdg/labwc/menu.xml".text = ''
     <?xml version="1.0" encoding="UTF-8"?>
     <openbox_menu>
       <menu id="root-menu" label="Menu">
-        <menu id="apps-menu" label="Applications" icon="view-grid">
+        <menu id="apps-menu" label="Applications" icon="applications-other">
           <item label="OpenCPN" icon="opencpn"><action name="Execute"><command>${launch.opencpn}</command></action></item>
-          <item label="XyGrib" icon="xygrib"><action name="Execute"><command>${launch.xygrib}</command></action></item>
-          <item label="SignalK" icon="network-server"><action name="Execute"><command>${launch.signalk}</command></action></item>
+          <item label="XyGrib" icon="gnome-weather"><action name="Execute"><command>${launch.xygrib}</command></action></item>
+          <item label="SignalK" icon="applications-internet"><action name="Execute"><command>${launch.signalk}</command></action></item>
           <item label="Navigateur" icon="chromium"><action name="Execute"><command>${launch.browser}</command></action></item>
-          <item label="Éditeur" icon="text-editor"><action name="Execute"><command>${bin.notes}</command></action></item>
+          <item label="Éditeur" icon="featherpad"><action name="Execute"><command>${bin.notes}</command></action></item>
         </menu>
-        <menu id="pypilot-menu" label="PyPilot" icon="compass">
-          <item label="Control" icon="input-gaming"><action name="Execute"><command>${launch.pypilotControl}</command></action></item>
-          <item label="Calibration" icon="gps"><action name="Execute"><command>${launch.pypilotCalibration}</command></action></item>
-          <item label="Client" icon="preferences-other"><action name="Execute"><command>${launch.pypilotClient}</command></action></item>
+        <menu id="pypilot-menu" label="PyPilot" icon="marble">
+          <item label="Control" icon="preferences-system"><action name="Execute"><command>${launch.pypilotControl}</command></action></item>
+          <item label="Calibration" icon="applications-science"><action name="Execute"><command>${launch.pypilotCalibration}</command></action></item>
+          <item label="Client" icon="utilities-system-monitor"><action name="Execute"><command>${launch.pypilotClient}</command></action></item>
           <item label="Web" icon="web-browser"><action name="Execute"><command>${launch.pypilotWeb}</command></action></item>
         </menu>
         <menu id="tools-menu" label="Outils" icon="applications-utilities">
-          <item label="xgps" icon="gps"><action name="Execute"><command>${bin.xgps}</command></action></item>
-          <item label="Calculatrice" icon="accessories-calculator"><action name="Execute"><command>${bin.calculator}</command></action></item>
+          <item label="xgps" icon="org.gnome.Maps"><action name="Execute"><command>${bin.xgps}</command></action></item>
+          <item label="Calculatrice" icon="qalculate"><action name="Execute"><command>${bin.calculator}</command></action></item>
+          <item label="Recharger labwc" icon="system-restart"><action name="Reconfigure" /></item>
         </menu>
         <separator />
-        <item label="Recharger labwc" icon="view-refresh"><action name="Reconfigure" /></item>
-        <item label="Quitter la session" icon="system-log-out"><action name="Exit" /></item>
 
         <!-- logind allows reboot/poweroff for the active local session (polkit). -->
         <item label="Redémarrer" icon="system-reboot"><action name="Execute"><command>${pkgs.systemd}/bin/systemctl reboot</command></action></item>
