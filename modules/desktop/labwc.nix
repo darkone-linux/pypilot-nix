@@ -38,7 +38,7 @@ let
     opencpn = "${opencpn.finalPackage}/bin/opencpn";
     xygrib = "${pkgs.xygrib}/bin/xygrib";
     terminal = "${pkgs.foot}/bin/foot";
-    notes = "${pkgs.gnome-text-editor}/bin/gnome-text-editor";
+    notes = "${pkgs.xfce.mousepad}/bin/mousepad";
     browser = "${pkgs.chromium}/bin/chromium";
     signalk = "${pkgs.chromium}/bin/chromium --app=http://localhost:3000/";
     files = "${pkgs.pcmanfm}/bin/pcmanfm";
@@ -295,7 +295,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     </openbox_menu>
   '';
 
-  # GTK apps (pcmanfm, gnome-text-editor, xygrib) follow the same dark look.
+  # GTK apps (pcmanfm, mousepad, xygrib) follow the same dark look.
   environment.etc."xdg/gtk-3.0/settings.ini".text = ''
     [Settings]
     gtk-theme-name=Arc-Dark
@@ -421,7 +421,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     pkgs.foot
     pkgs.xwayland
     pkgs.pcmanfm
-    pkgs.gnome-text-editor
+    pkgs.xfce.mousepad
     pkgs.nwg-drawer
     pkgs.arc-theme
     pkgs.papirus-icon-theme
@@ -442,35 +442,25 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
   ];
   fonts.fontconfig.enable = true;
 
-  # JetBrains Mono becomes the default monospace (gnome-text-editor, foot, GTK apps).
+  # JetBrains Mono becomes the default monospace (mousepad, foot, GTK apps).
   fonts.fontconfig.defaultFonts.monospace = [ "JetBrainsMono Nerd Font Mono" ];
 
-  # gnome-text-editor reads its preferences from GSettings → dconf required.
+  # mousepad stores its preferences in GSettings → dconf required.
   programs.dconf.enable = true;
 
-  # User-overridable defaults (no lockAll): dark look + JetBrains monospace.
+  # User-overridable defaults. Window chrome is already dark via GTK_THEME=Arc-Dark;
+  # only the editor area needs a dark gtksourceview scheme (oblivion), which also
+  # turns syntax highlighting on (color-scheme = none disables it).
   programs.dconf.profiles.user.databases = [
     {
-      settings = {
-
-        # No settings-daemon/portal here, so libadwaita reads color-scheme straight
-        # from GSettings: force dark to match NavBlue/Arc-Dark, set the mono font.
-        "org/gnome/desktop/interface" = {
-          color-scheme = "prefer-dark";
-          monospace-font-name = "JetBrainsMono Nerd Font Mono 13";
-        };
-
-        # Editor: inherit the system mono font, dark syntax scheme, line numbers.
-        "org/gnome/TextEditor" = {
-          use-system-font = true;
-          style-scheme = "Adwaita-dark";
-          highlight-current-line = true;
-          show-line-numbers = true;
-          show-grid = false;
-          restore-session = false;
-          tab-width = lib.gvariant.mkUint32 4;
-          indent-style = "space";
-        };
+      settings."org/xfce/mousepad/preferences/view" = {
+        use-default-monospace-font = false;
+        font-name = "JetBrainsMono Nerd Font Mono 12";
+        color-scheme = "oblivion";
+        highlight-current-line = true;
+        show-line-numbers = true;
+        insert-spaces = true;
+        tab-width = lib.gvariant.mkUint32 4;
       };
     }
   ];
