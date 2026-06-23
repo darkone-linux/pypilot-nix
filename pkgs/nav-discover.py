@@ -50,13 +50,14 @@ def port_path(dev):
 def describe(dev):
     """Extract the identity fields nav-discover reasons about."""
 
+    props = dev.properties
     return {
-        "devname": dev.get("DEVNAME"),
-        "vendor": dev.get("ID_VENDOR_ID"),
-        "product": dev.get("ID_MODEL_ID"),
-        "serial": dev.get("ID_SERIAL_SHORT") or dev.get("ID_USB_SERIAL_SHORT"),
+        "devname": props.get("DEVNAME"),
+        "vendor": props.get("ID_VENDOR_ID"),
+        "product": props.get("ID_MODEL_ID"),
+        "serial": props.get("ID_SERIAL_SHORT") or props.get("ID_USB_SERIAL_SHORT"),
         "port": port_path(dev),
-        "driver": dev.get("ID_USB_DRIVER") or (dev.parent and dev.parent.driver),
+        "driver": props.get("ID_USB_DRIVER") or (dev.parent and dev.parent.driver),
     }
 
 
@@ -65,8 +66,9 @@ def list_serial(context):
 
     out = []
     for dev in context.list_devices(subsystem="tty"):
-        devpath = dev.get("DEVPATH", "")
-        if not dev.get("DEVNAME"):
+        props = dev.properties
+        devpath = props.get("DEVPATH", "")
+        if not props.get("DEVNAME"):
             continue
 
         # Pseudo-terminals and the legacy serial8250 placeholders are not gear.
