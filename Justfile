@@ -25,6 +25,14 @@ fix:
     echo "[ {{ CYAN }}NPY{{ NORMAL }} ] STATIX • Full fixing..."
     statix fix .
 
+# Recursive deadnix on nix files
+[group('dev')]
+check:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "[ {{ CYAN }}NPY{{ NORMAL }} ] DEADNIX • Full checking..."
+    find . -name "*.nix" -exec deadnix -eq {} \;
+
 # treefmt orchestrates formatters in parallel (via treefmt.toml)
 [group('dev')]
 format:
@@ -32,18 +40,6 @@ format:
     set -euo pipefail
     echo "[ {{ CYAN }}NPY{{ NORMAL }} ] TREEFMT • Full formatting..."
     treefmt --no-cache --quiet
-
-#==============================================================================
-# Check
-#==============================================================================
-
-# Recursive deadnix on nix files
-[group('check')]
-check:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    echo "[ {{ CYAN }}NPY{{ NORMAL }} ] DEADNIX • Full checking..."
-    find . -name "*.nix" -exec deadnix -eq {} \;
 
 #==============================================================================
 # Build
