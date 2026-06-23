@@ -38,7 +38,7 @@ let
     opencpn = "${opencpn.finalPackage}/bin/opencpn";
     xygrib = "${pkgs.xygrib}/bin/xygrib";
     terminal = "${pkgs.foot}/bin/foot";
-    notes = "${pkgs.xfce.mousepad}/bin/mousepad";
+    notes = "${pkgs.gnome-text-editor}/bin/gnome-text-editor";
     browser = "${pkgs.chromium}/bin/chromium";
     signalk = "${pkgs.chromium}/bin/chromium --app=http://localhost:3000/";
     files = "${pkgs.pcmanfm}/bin/pcmanfm";
@@ -276,6 +276,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
           <item label="XyGrib" icon="xygrib"><action name="Execute"><command>${launch.xygrib}</command></action></item>
           <item label="SignalK" icon="network-server"><action name="Execute"><command>${launch.signalk}</command></action></item>
           <item label="Navigateur" icon="chromium"><action name="Execute"><command>${launch.browser}</command></action></item>
+          <item label="Éditeur" icon="text-editor"><action name="Execute"><command>${bin.notes}</command></action></item>
         </menu>
         <menu id="pypilot-menu" label="PyPilot" icon="compass">
           <item label="Control" icon="input-gaming"><action name="Execute"><command>${launch.pypilotControl}</command></action></item>
@@ -294,7 +295,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     </openbox_menu>
   '';
 
-  # GTK apps (pcmanfm, mousepad, xygrib) follow the same dark look.
+  # GTK apps (pcmanfm, gnome-text-editor, xygrib) follow the same dark look.
   environment.etc."xdg/gtk-3.0/settings.ini".text = ''
     [Settings]
     gtk-theme-name=Arc-Dark
@@ -307,7 +308,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
   # Large, readable terminal font — the default was unusably small on the helm.
   environment.etc."xdg/foot/foot.ini".text = ''
     [main]
-    font=DejaVu Sans Mono:size=18
+    font=JetBrainsMono Nerd Font Mono:size=18
     pad=8x8
 
     [colors]
@@ -420,7 +421,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     pkgs.foot
     pkgs.xwayland
     pkgs.pcmanfm
-    pkgs.xfce.mousepad
+    pkgs.gnome-text-editor
     pkgs.nwg-drawer
     pkgs.arc-theme
     pkgs.papirus-icon-theme
@@ -434,8 +435,45 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     signalkDesktop
   ];
 
-  # Nerd Font symbols supply the panel glyphs (start, compass, cloud, …).
-  fonts.packages = [ pkgs.nerd-fonts.symbols-only ];
+  # Symbols-only feeds the panel glyphs; JetBrains Mono is the editor/terminal font.
+  fonts.packages = [
+    pkgs.nerd-fonts.symbols-only
+    pkgs.nerd-fonts.jetbrains-mono
+  ];
+  fonts.fontconfig.enable = true;
+
+  # JetBrains Mono becomes the default monospace (gnome-text-editor, foot, GTK apps).
+  fonts.fontconfig.defaultFonts.monospace = [ "JetBrainsMono Nerd Font Mono" ];
+
+  # gnome-text-editor reads its preferences from GSettings → dconf required.
+  programs.dconf.enable = true;
+
+  # User-overridable defaults (no lockAll): dark look + JetBrains monospace.
+  programs.dconf.profiles.user.databases = [
+    {
+      settings = {
+
+        # No settings-daemon/portal here, so libadwaita reads color-scheme straight
+        # from GSettings: force dark to match NavBlue/Arc-Dark, set the mono font.
+        "org/gnome/desktop/interface" = {
+          color-scheme = "prefer-dark";
+          monospace-font-name = "JetBrainsMono Nerd Font Mono 13";
+        };
+
+        # Editor: inherit the system mono font, dark syntax scheme, line numbers.
+        "org/gnome/TextEditor" = {
+          use-system-font = true;
+          style-scheme = "Adwaita-dark";
+          highlight-current-line = true;
+          show-line-numbers = true;
+          show-grid = false;
+          restore-session = false;
+          tab-width = lib.gvariant.mkUint32 4;
+          indent-style = "space";
+        };
+      };
+    }
+  ];
 
   # DDC/CI brightness needs unprivileged i2c access: the i2c group + udev rules
   # from hardware.i2c, with the session user added to that group.
