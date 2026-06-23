@@ -160,6 +160,46 @@ Les `idVendor`/`idProduct` sont des options du module, avec valeurs par défaut 
 
 > **Évolution Phase 6a** : en plus de ces règles épinglées, une **auto-détection générique** (gpsd hotplug USB pour le GPS, symlink AIS par puce/classe série + provider SignalK) permet de brancher n'importe quel GPS/AIS sans le déclarer au préalable. Voir Phase 6a.
 
+### 1bis. Registre série unifié & découverte (`nav-discover`)
+
+Équivalent de l'app « Serial » d'OpenPlotter, mais déclaratif. Un registre unique
+`services.navigation.serialDevices` (clé = nom du symlink `/dev`) génère **à la fois**
+la règle udev et le provider SignalK. Le GPS reste géré par `services.navigation.gps`
+(gpsd en est propriétaire).
+
+```nix
+services.navigation.serialDevices.ttyOP_ais = {
+  match = { vendorId = "27c5"; productId = "0402"; serial = "793379380P51"; };
+  role = "ais"; # ais | nmea0183 | pilot
+  baudrate = 38400;
+};
+```
+
+Câblage par rôle :
+
+| role       | règle udev (symlink dialout) | service cible | provider SignalK       |
+|------------|------------------------------|---------------|------------------------|
+| `gps`      | via `services.navigation.gps`| gpsd          | source gpsd            |
+| `ais`      | oui                          | signalk       | NMEA0183 série @ baud  |
+| `nmea0183` | oui                          | signalk       | NMEA0183 série @ baud  |
+| `pilot`    | oui                          | pypilot       | aucun                  |
+
+Le match suit le `remember` d'OpenPlotter : `vendorId`+`productId` (+`serial` optionnel)
+pour un périphérique USB, ou `port` (chemin device-tree, ex. `fe201000.serial:0.0`) pour
+un UART soudé. Les options historiques `ais`/`motor` sont traduites en interne vers ce
+registre (pas de régression). NMEA2000/CAN reste hors registre (géré par le HAT MacArthur).
+
+**Découverte.** Le CLI `nav-discover` (read-only) énumère les ports série via pyudev :
+
+```
+nav-discover            # liste + extraits Nix (rôle deviné par VID:PID)
+nav-discover --sniff    # ouvre chaque port, lit le NMEA0183 et déduit le rôle
+```
+
+Boucle utilisateur : brancher le matériel → `nav-discover [--sniff]` → coller l'extrait
+dans le `configuration.nix` de l'hôte → `nixos-rebuild switch`. `--sniff` n'ouvre pas un
+port déjà tenu par gpsd/signalk : faire la découverte avant d'assigner le périphérique.
+
 ### 2. gpsd → signalk
 
 ```nix

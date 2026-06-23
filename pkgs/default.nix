@@ -40,5 +40,7 @@ in
 
   ais-catcher = final.callPackage ./ais-catcher.nix { };
 
+  nav-discover = final.callPackage ./nav-discover.nix { };
+
   opencpn-plugin-pypilot = final.callPackage ./opencpn-plugin-pypilot.nix { };
 }

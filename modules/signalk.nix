@@ -29,11 +29,37 @@ let
 
   settingsFormat = pkgs.formats.json { };
 
-  # AIS lives on the navigation module; read it defensively so signalk stays
-  # usable when imported without the navigation orchestrator.
-  navAis = config.services.navigation.ais or null;
-  aisSerial = navAis != null && navAis.enable;
+  # Device wiring lives on the navigation module; read it defensively so signalk
+  # stays usable when imported without the navigation orchestrator.
+  nav = config.services.navigation or null;
+  resolved = if nav != null then nav._resolved or [ ] else [ ];
+  navAis = if nav != null then nav.ais else null;
   aisSdr = navAis != null && navAis.sdr.enable;
+
+  # Serial NMEA0183 sources (ais/nmea0183 roles) from the unified registry.
+  serialDevices = lib.filter (e: e.role == "ais" || e.role == "nmea0183") resolved;
+  hasSerial = serialDevices != [ ];
+
+  # One provider per /dev name: the registry may list several udev matches for
+  # the same symlink (e.g. a multi-id AIS autodetect) — keep the first.
+  uniqueSerial =
+    (lib.foldl'
+      (
+        acc: e:
+        if lib.elem e.name acc.seen then
+          acc
+        else
+          {
+            seen = acc.seen ++ [ e.name ];
+            out = acc.out ++ [ e ];
+          }
+      )
+      {
+        seen = [ ];
+        out = [ ];
+      }
+      serialDevices
+    ).out;
 
   # One NMEA0183 input provider (serial or udp), mirroring OpenPlotter's layout.
   nmea0183Provider = id: subOptions: {
@@ -84,16 +110,18 @@ let
     }
   ];
 
-  # AIS from a serial receiver and/or SDR (ais-catcher) over UDP.
+  # Serial NMEA0183 inputs (AIS + sensors) from the registry, and AIS over SDR
+  # (ais-catcher) via UDP.
   aisProviders =
-    optional aisSerial (
-      nmea0183Provider "ais" {
+    map (
+      e:
+      nmea0183Provider e.signalkId {
         type = "serial";
-        device = navAis.device;
-        baudrate = navAis.baudrate;
+        device = "/dev/${e.name}";
+        baudrate = e.baudrate;
         validateChecksum = true;
       }
-    )
+    ) uniqueSerial
     ++ optional aisSdr (
       nmea0183Provider "ais-sdr" {
         type = "udp";
@@ -181,7 +209,7 @@ in
       home = stateDir;
 
       # Serial AIS/NMEA devices are group dialout.
-      extraGroups = optional aisSerial "dialout";
+      extraGroups = optional hasSerial "dialout";
     };
 
     users.groups.${cfg.group} = mkIf (cfg.group == "signalk") { };

@@ -20,6 +20,9 @@ in
   environment.systemPackages = [
     pkgs.git
     pkgs.zip
+
+    # Discover serial devices and emit serialDevices Nix snippets.
+    pkgs.nav-discover
   ];
 
   # Make the flake's custom marine packages (pypilot, signalk-server, …) resolve

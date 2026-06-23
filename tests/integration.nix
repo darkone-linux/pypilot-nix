@@ -27,6 +27,17 @@ navPkgs.testers.runNixOSTest {
         # No serial GPS in the VM; the daemon stack is exercised here and the
         # GPS path is simulated with gpsfake in the test script below.
         gps.enable = false;
+
+        # Exercise the unified serial registry: a generic NMEA0183 sensor must
+        # produce both a udev symlink and a Signal K serial provider.
+        serialDevices.ttyOP_depth = {
+          match = {
+            vendorId = "0403";
+            productId = "6001";
+          };
+          role = "nmea0183";
+          baudrate = 4800;
+        };
       };
 
       # curl drives the Signal K API; gpsd ships gpsfake/gpspipe for the sim.
@@ -49,6 +60,14 @@ navPkgs.testers.runNixOSTest {
     with subtest("pypilot autopilot daemon exposes its NMEA TCP port"):
         boat.wait_for_unit("pypilot.service")
         boat.wait_for_open_port(20220)
+
+    with subtest("serialDevices wires a udev symlink and a Signal K provider"):
+        boat.succeed(
+            "grep -rq 'SYMLINK+=\"ttyOP_depth\"' /etc/udev/rules.d/"
+        )
+        boat.wait_until_succeeds(
+            "grep -q ttyOP_depth /var/lib/signalk/settings.json", timeout=60
+        )
 
     with subtest("simulated GPS fix flows through gpsd"):
         boat.succeed(

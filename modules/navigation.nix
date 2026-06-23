@@ -47,6 +47,79 @@ let
     };
   };
 
+  # How udev pins a registry device to its /dev name: USB identity or port path
+  # (OpenPlotter's remember = dev | port).
+  serialMatch = types.submodule {
+    options = {
+      vendorId = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        example = "27c5";
+        description = "USB idVendor (hex, lowercase).";
+      };
+      productId = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        example = "0402";
+        description = "USB idProduct (hex, lowercase).";
+      };
+      serial = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        example = "793379380P51";
+        description = "USB serial string, to disambiguate identical adapters (optional).";
+      };
+      port = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        example = "fe201000.serial:0.0";
+        description = "Device-tree/USB port path for soldered UARTs without USB ids (udev KERNELS match).";
+      };
+    };
+  };
+
+  # A generic serial device assigned to a stable /dev name and a role.
+  serialDevice = types.submodule {
+    options = {
+      enable = mkOption {
+        type = types.bool;
+        default = true;
+        description = "Whether to wire this device.";
+      };
+
+      match = mkOption {
+        type = serialMatch;
+        description = "How udev pins the device to /dev/<name>: USB id (+serial) or port.";
+      };
+
+      role = mkOption {
+        type = types.enum [
+          "ais"
+          "nmea0183"
+          "pilot"
+        ];
+        description = ''
+          Device role, driving the wiring:
+          - ais / nmea0183: NMEA0183 serial source piped into Signal K;
+          - pilot: autopilot motor controller (symlink only; pypilot owns it).
+          GPS is handled by `services.navigation.gps` (gpsd owns the receiver).
+        '';
+      };
+
+      baudrate = mkOption {
+        type = types.ints.positive;
+        default = 38400;
+        description = "Serial baud rate (NMEA0183 AIS is 38400; many sensors are 4800).";
+      };
+
+      signalkId = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        description = "Signal K provider id; defaults to the attribute name.";
+      };
+    };
+  };
+
   gpsName = lib.removePrefix "/dev/" cfg.gps.device;
   aisName = lib.removePrefix "/dev/" aiscfg.device;
 
@@ -54,7 +127,6 @@ let
   hasMotorIds = cfg.motor.vendorId != null && cfg.motor.productId != null;
 
   gpsAutodetect = cfg.gps.enable && cfg.gps.autodetect;
-  aisAutodetect = aiscfg.enable && aiscfg.autodetect;
   aisSdr = aiscfg.enable && aiscfg.sdr.enable;
 
   # GNSS receivers hotplugged into gpsd: the curated list plus an explicit pin.
@@ -74,6 +146,78 @@ let
   gpsHotplugRule =
     { vendorId, productId }:
     ''SUBSYSTEM=="tty", ACTION=="add", ATTRS{idVendor}=="${vendorId}", ATTRS{idProduct}=="${productId}", SYMLINK+="${gpsName}", GROUP="dialout", TAG+="systemd", ENV{SYSTEMD_WANTS}+="gpsdctl@%k.service"'';
+
+  # udev: pin one resolved registry device to /dev/<name> (USB id or port).
+  deviceRule =
+    e:
+    let
+      usbMatch =
+        ''ATTRS{idVendor}=="${e.vendorId}", ATTRS{idProduct}=="${e.productId}"''
+        + lib.optionalString (e.serial != null) '', ATTRS{serial}=="${e.serial}"'';
+      selector = if e.port != null then ''KERNELS=="${e.port}"'' else usbMatch;
+    in
+    ''SUBSYSTEM=="tty", ${selector}, SYMLINK+="${e.name}", GROUP="dialout", MODE="0660", TAG+="systemd"'';
+
+  # Legacy ais option as registry entries: one udev match per known id, all
+  # pointing at the same symlink; deduped to a single Signal K provider.
+  legacyAis =
+    if !aiscfg.enable then
+      [ ]
+    else if aiscfg.autodetect then
+      map (id: {
+        name = aisName;
+        inherit (id) vendorId productId;
+        serial = null;
+        port = null;
+        role = "ais";
+        baudrate = aiscfg.baudrate;
+        signalkId = "ais";
+      }) aiscfg.autodetectIds
+    else
+      [
+        {
+          name = aisName;
+          vendorId = null;
+          productId = null;
+          serial = null;
+          port = null;
+          role = "ais";
+          baudrate = aiscfg.baudrate;
+          signalkId = "ais";
+        }
+      ];
+
+  # Legacy motor option as a registry entry (symlink only; pypilot owns it).
+  legacyMotor = optional hasMotorIds {
+    name = cfg.motor.symlink;
+    inherit (cfg.motor) vendorId productId;
+    serial = null;
+    port = null;
+    role = "pilot";
+    baudrate = null;
+    signalkId = null;
+  };
+
+  # User-declared devices, normalised to the same shape.
+  userDevices = lib.mapAttrsToList (name: d: {
+    inherit name;
+    inherit (d.match)
+      vendorId
+      productId
+      serial
+      port
+      ;
+    inherit (d) role baudrate;
+    signalkId = if d.signalkId != null then d.signalkId else name;
+  }) (lib.filterAttrs (_: d: d.enable) cfg.serialDevices);
+
+  # Single source of truth for udev symlinks and Signal K serial providers.
+  resolvedDevices = userDevices ++ legacyAis ++ legacyMotor;
+
+  # udev rules only for devices carrying a stable identifier (id or port).
+  serialRules = map deviceRule (
+    lib.filter (e: (e.vendorId != null && e.productId != null) || e.port != null) resolvedDevices
+  );
 in
 {
   imports = [
@@ -250,9 +394,37 @@ in
         description = "Name of the /dev symlink pointing at the motor controller.";
       };
     };
+
+    serialDevices = mkOption {
+      type = types.attrsOf serialDevice;
+      default = { };
+      example = lib.literalExpression ''
+        {
+          ttyOP_ais = {
+            match = { vendorId = "27c5"; productId = "0402"; };
+            role = "ais";
+          };
+        }
+      '';
+      description = ''
+        Generic serial-device registry; the attribute name is the /dev symlink.
+        Each entry generates a udev rule and, for ais/nmea0183 roles, a Signal K
+        NMEA0183 serial provider. Fill it with the `nav-discover` CLI.
+      '';
+    };
+
+    _resolved = mkOption {
+      internal = true;
+      visible = false;
+      type = types.listOf types.attrs;
+      default = [ ];
+      description = "Internal: normalised serial devices, consumed by signalk.nix.";
+    };
   };
 
   config = mkIf cfg.enable {
+
+    services.navigation._resolved = resolvedDevices;
 
     # GPS served by gpsd, feeding signalk and the system clock.
     services.gpsd = mkIf cfg.gps.enable {
@@ -308,17 +480,9 @@ in
           })
       )
 
-      # AIS: stable symlink per known receiver so signalk's serial provider
-      # finds it whenever it is plugged in.
-      ++ optionals aisAutodetect (
-        map (
-          id:
-          ttySymlink {
-            inherit (id) vendorId productId;
-            name = aisName;
-          }
-        ) aiscfg.autodetectIds
-      )
+      # Registry devices (AIS, generic NMEA0183 sensors, motor controller):
+      # one stable symlink per match, from the unified serial registry.
+      ++ serialRules
 
       # RTL-SDR dongle readable by the ais-catcher service (system, not a seat
       # user, so uaccess does not apply — assign a group explicitly).
@@ -326,12 +490,6 @@ in
         ''SUBSYSTEM=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2832", GROUP="plugdev", MODE="0660"''
         ''SUBSYSTEM=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2838", GROUP="plugdev", MODE="0660"''
       ]
-
-      # Autopilot motor controller (pinned by USB ID).
-      ++ optional hasMotorIds (ttySymlink {
-        inherit (cfg.motor) vendorId productId;
-        name = cfg.motor.symlink;
-      })
     );
 
     # AIS via SDR: decode from the RTL-SDR dongle and forward NMEA over UDP to
@@ -363,7 +521,19 @@ in
         assertion = (cfg.motor.vendorId == null) == (cfg.motor.productId == null);
         message = "services.navigation.motor: set both vendorId and productId, or neither.";
       }
-    ];
+    ]
+    ++ lib.mapAttrsToList (n: d: {
+      assertion =
+        let
+          m = d.match;
+          usb = m.vendorId != null && m.productId != null;
+          partialUsb = (m.vendorId == null) != (m.productId == null);
+        in
+
+        # Exactly one match mode, with USB ids complete when used.
+        !partialUsb && (usb != (m.port != null));
+      message = "services.navigation.serialDevices.${n}.match: set exactly one of vendorId+productId (optionally serial) or port.";
+    }) cfg.serialDevices;
 
     warnings = optional (cfg.pypilot.enable && cfg.hardware == null) (
       "services.navigation: pypilot is enabled without a HAT (hardware = null); "
