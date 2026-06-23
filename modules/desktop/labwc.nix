@@ -311,12 +311,20 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
   # - darkColorScheme: dark editor area (chrome follows the Qt Adwaita-Dark style).
   # - textMargin: a little padding around the text; textTabSize: 2-space indent.
   # Syntax highlighting is on by default; line numbers off by default.
+  # Chrome kept minimal: no toolbar (thin menubar stays — FeatherPad forbids hiding
+  # both), search bar appears only on Ctrl+F, tab bar only with several tabs.
   environment.etc."xdg/featherpad/fp.conf".text = ''
     [text]
     font="JetBrainsMono Nerd Font Mono,16,-1,5,50,0,0,0,0,0"
     darkColorScheme=true
     textMargin=true
     textTabSize=2
+
+    [window]
+    noMenubar=true
+    hideSearchbar=true
+    hideSingleTab=true
+    showStatusbar=false
   '';
 
   # Large, readable terminal font — the default was unusably small on the helm.
