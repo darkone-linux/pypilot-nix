@@ -138,6 +138,7 @@
         signalk = ./modules/signalk.nix;
         opencpn = ./modules/opencpn.nix;
         desktop = ./modules/desktop;
+        development = ./modules/development.nix;
       };
 
       # All hosts share the navigation modules; add boats/benches here without

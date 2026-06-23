@@ -19,6 +19,9 @@
   services.navigation.opencpn.plugins = [ pkgs.opencpn-plugin-pypilot ];
   services.navigation.desktop.enable = true;
 
+  # On-box dev/admin toolbox: Zed editor + essentials, admin and Nix tooling.
+  services.navigation.development.enable = true;
+
   # labwc by default; set compositor = "gnome" here to test the GNOME session.
   # services.navigation.desktop.compositor = "gnome";
 }

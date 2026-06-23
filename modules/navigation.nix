@@ -227,6 +227,7 @@ in
     ./opencpn.nix
     ./gps-time.nix
     ./desktop
+    ./development.nix
   ];
 
   options.services.navigation = {
