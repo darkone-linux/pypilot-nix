@@ -5,7 +5,7 @@
 # Arc-Dark/Papirus for GTK apps. The waybar top panel has a start-menu button
 # (nwg-drawer, full-screen flat app grid), quick-launch icon glyphs (with
 # tooltips), and a window taskbar; the right-click root menu groups apps under
-# Applications and PyPilot submenus with icons.
+# Applications, PyPilot and Outils submenus with icons.
 # Slow apps (OpenCPN, browser) pop a "starting…" notification (mako) so the
 # helmsman doesn't click twice. Media keys + waybar buttons drive screen
 # brightness over DDC/CI (ddcutil) and volume via PipeWire (wpctl) — brightness
@@ -45,6 +45,10 @@ let
     pdf = "${pkgs.evince}/bin/evince";
     vlc = "${pkgs.vlc}/bin/vlc";
 
+    # Tools: gpsd's GTK test client + a GTK3 calculator (follows Arc-Dark).
+    xgps = "${pkgs.gpsd}/bin/xgps";
+    calculator = "${pkgs.qalculate-gtk}/bin/qalculate-gtk";
+
     # PyPilot front-ends: three wx GUIs from the daemon package, plus its web UI
     # (served by pypilot_web on :8000) shown in a Chromium app window.
     pypilotControl = "${pypilot.package}/bin/pypilot_control";
@@ -69,6 +73,7 @@ let
     grib = faGlyph "f0c2";
     signalk = faGlyph "f012";
     web = faGlyph "f0ac";
+    editor = faGlyph "f044";
     moon = faGlyph "f186";
     sun = faGlyph "f185";
   };
@@ -284,6 +289,10 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
           <item label="Client" icon="preferences-other"><action name="Execute"><command>${launch.pypilotClient}</command></action></item>
           <item label="Web" icon="web-browser"><action name="Execute"><command>${launch.pypilotWeb}</command></action></item>
         </menu>
+        <menu id="tools-menu" label="Outils" icon="applications-utilities">
+          <item label="xgps" icon="gps"><action name="Execute"><command>${bin.xgps}</command></action></item>
+          <item label="Calculatrice" icon="accessories-calculator"><action name="Execute"><command>${bin.calculator}</command></action></item>
+        </menu>
         <separator />
         <item label="Recharger labwc" icon="view-refresh"><action name="Reconfigure" /></item>
         <item label="Quitter la session" icon="system-log-out"><action name="Exit" /></item>
@@ -349,7 +358,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
       "spacing": 4,
       "modules-left": [
         "custom/menu", "custom/terminal", "custom/opencpn", "custom/xygrib",
-        "custom/signalk", "custom/browser", "wlr/taskbar"
+        "custom/signalk", "custom/browser", "custom/notes", "wlr/taskbar"
       ],
       "modules-center": [ "clock" ],
       "modules-right": [ "custom/bright-down", "custom/bright-up", "cpu", "memory", "temperature", "network", "tray" ],
@@ -359,6 +368,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
       "custom/xygrib":   { "format": "${glyph.grib}",    "on-click": "${launch.xygrib}",   "tooltip": true, "tooltip-format": "XyGrib" },
       "custom/signalk":  { "format": "${glyph.signalk}", "on-click": "${launch.signalk}",  "tooltip": true, "tooltip-format": "SignalK" },
       "custom/browser":  { "format": "${glyph.web}",     "on-click": "${launch.browser}",  "tooltip": true, "tooltip-format": "Navigateur" },
+      "custom/notes":    { "format": "${glyph.editor}",  "on-click": "${bin.notes}",       "tooltip": true, "tooltip-format": "Éditeur" },
       "wlr/taskbar": {
         "icon-size": 24,
         "on-click": "activate",
@@ -394,7 +404,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
       color: #e6e8ee;
     }
     #custom-menu, #custom-terminal, #custom-opencpn, #custom-xygrib,
-    #custom-signalk, #custom-browser {
+    #custom-signalk, #custom-browser, #custom-notes {
       font-size: 18px;
       background-color: #2a2e3a;
       color: #ffffff;
@@ -406,7 +416,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
       background-color: ${accent};
     }
     #custom-menu:hover, #custom-terminal:hover, #custom-opencpn:hover, #custom-xygrib:hover,
-    #custom-signalk:hover, #custom-browser:hover {
+    #custom-signalk:hover, #custom-browser:hover, #custom-notes:hover {
       background-color: ${blue};
     }
     #taskbar button {
@@ -444,6 +454,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     pkgs.xwayland
     pkgs.pcmanfm
     pkgs.featherpad
+    pkgs.qalculate-gtk
     pkgs.adwaita-qt6
     pkgs.nwg-drawer
     pkgs.arc-theme
