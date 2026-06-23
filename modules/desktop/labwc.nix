@@ -189,12 +189,16 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
 
   # Session env: keyboard follows the system, cursor + GTK theme, and a dark Qt
   # style so Qt apps (XyGrib) get visible, themed widgets instead of blank ones.
+  # greetd launches labwc directly (no login shell), so NixOS sessionVariables are
+  # not sourced: GIO_EXTRA_MODULES must be re-exported here or GSettings falls back
+  # to the memory backend and ignores our dconf defaults (mousepad font/scheme/…).
   environment.etc."xdg/labwc/environment".text = ''
     XKB_DEFAULT_LAYOUT=${config.services.xserver.xkb.layout}
     XCURSOR_THEME=Adwaita
     XCURSOR_SIZE=24
     GTK_THEME=Arc-Dark
     QT_STYLE_OVERRIDE=Adwaita-Dark
+    GIO_EXTRA_MODULES=${pkgs.dconf.lib}/lib/gio/modules
   '';
 
   # labwc core config: NavBlue theme + a <keyboard> section. Declaring any
@@ -303,6 +307,14 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     gtk-font-name=Sans 12
     gtk-cursor-theme-name=Adwaita
     gtk-cursor-theme-size=24
+  '';
+
+  # Breathing room around the text: mousepad's editor (a GtkSourceView/textview)
+  # otherwise glues the text to the window edge.
+  environment.etc."xdg/gtk-3.0/gtk.css".text = ''
+    textview {
+      padding: 3px 4px;
+    }
   '';
 
   # Large, readable terminal font — the default was unusably small on the helm.
@@ -455,12 +467,12 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     {
       settings."org/xfce/mousepad/preferences/view" = {
         use-default-monospace-font = false;
-        font-name = "JetBrainsMono Nerd Font Mono 12";
+        font-name = "JetBrainsMono Nerd Font Mono 16";
         color-scheme = "oblivion";
         highlight-current-line = true;
-        show-line-numbers = true;
+        show-line-numbers = false;
         insert-spaces = true;
-        tab-width = lib.gvariant.mkUint32 4;
+        tab-width = lib.gvariant.mkUint32 2;
       };
     }
   ];
