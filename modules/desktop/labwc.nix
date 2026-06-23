@@ -38,7 +38,7 @@ let
     opencpn = "${opencpn.finalPackage}/bin/opencpn";
     xygrib = "${pkgs.xygrib}/bin/xygrib";
     terminal = "${pkgs.foot}/bin/foot";
-    notes = "${pkgs.xfce.mousepad}/bin/mousepad";
+    notes = "${pkgs.featherpad}/bin/featherpad";
     browser = "${pkgs.chromium}/bin/chromium";
     signalk = "${pkgs.chromium}/bin/chromium --app=http://localhost:3000/";
     files = "${pkgs.pcmanfm}/bin/pcmanfm";
@@ -188,17 +188,13 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     + "\n";
 
   # Session env: keyboard follows the system, cursor + GTK theme, and a dark Qt
-  # style so Qt apps (XyGrib) get visible, themed widgets instead of blank ones.
-  # greetd launches labwc directly (no login shell), so NixOS sessionVariables are
-  # not sourced: GIO_EXTRA_MODULES must be re-exported here or GSettings falls back
-  # to the memory backend and ignores our dconf defaults (mousepad font/scheme/…).
+  # style so Qt apps (XyGrib, FeatherPad) get visible, themed widgets.
   environment.etc."xdg/labwc/environment".text = ''
     XKB_DEFAULT_LAYOUT=${config.services.xserver.xkb.layout}
     XCURSOR_THEME=Adwaita
     XCURSOR_SIZE=24
     GTK_THEME=Arc-Dark
     QT_STYLE_OVERRIDE=Adwaita-Dark
-    GIO_EXTRA_MODULES=${pkgs.dconf.lib}/lib/gio/modules
   '';
 
   # labwc core config: NavBlue theme + a <keyboard> section. Declaring any
@@ -299,7 +295,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     </openbox_menu>
   '';
 
-  # GTK apps (pcmanfm, mousepad, xygrib) follow the same dark look.
+  # GTK apps (pcmanfm) follow the same dark look.
   environment.etc."xdg/gtk-3.0/settings.ini".text = ''
     [Settings]
     gtk-theme-name=Arc-Dark
@@ -309,12 +305,18 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     gtk-cursor-theme-size=24
   '';
 
-  # Breathing room around the text: mousepad's editor (a GtkSourceView/textview)
-  # otherwise glues the text to the window edge.
-  environment.etc."xdg/gtk-3.0/gtk.css".text = ''
-    textview {
-      padding: 3px 4px;
-    }
+  # FeatherPad (Qt) defaults: shipped as a system-wide QSettings fallback that the
+  # editor reads when the user has no ~/.config/featherpad/fp.conf yet.
+  # - font: legacy 10-field QFont string (Qt6 reads it) → JetBrains Mono 16.
+  # - darkColorScheme: dark editor area (chrome follows the Qt Adwaita-Dark style).
+  # - textMargin: a little padding around the text; textTabSize: 2-space indent.
+  # Syntax highlighting is on by default; line numbers off by default.
+  environment.etc."xdg/featherpad/fp.conf".text = ''
+    [text]
+    font="JetBrainsMono Nerd Font Mono,16,-1,5,50,0,0,0,0,0"
+    darkColorScheme=true
+    textMargin=true
+    textTabSize=2
   '';
 
   # Large, readable terminal font — the default was unusably small on the helm.
@@ -433,7 +435,8 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     pkgs.foot
     pkgs.xwayland
     pkgs.pcmanfm
-    pkgs.xfce.mousepad
+    pkgs.featherpad
+    pkgs.adwaita-qt6
     pkgs.nwg-drawer
     pkgs.arc-theme
     pkgs.papirus-icon-theme
@@ -454,28 +457,9 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
   ];
   fonts.fontconfig.enable = true;
 
-  # JetBrains Mono becomes the default monospace (mousepad, foot, GTK apps).
+  # JetBrains Mono becomes the default monospace (FeatherPad, foot). It is also
+  # FeatherPad's fallback: a bare QFont("Monospace") resolves here via fontconfig.
   fonts.fontconfig.defaultFonts.monospace = [ "JetBrainsMono Nerd Font Mono" ];
-
-  # mousepad stores its preferences in GSettings → dconf required.
-  programs.dconf.enable = true;
-
-  # User-overridable defaults. Window chrome is already dark via GTK_THEME=Arc-Dark;
-  # only the editor area needs a dark gtksourceview scheme (oblivion), which also
-  # turns syntax highlighting on (color-scheme = none disables it).
-  programs.dconf.profiles.user.databases = [
-    {
-      settings."org/xfce/mousepad/preferences/view" = {
-        use-default-monospace-font = false;
-        font-name = "JetBrainsMono Nerd Font Mono 16";
-        color-scheme = "oblivion";
-        highlight-current-line = true;
-        show-line-numbers = false;
-        insert-spaces = true;
-        tab-width = lib.gvariant.mkUint32 2;
-      };
-    }
-  ];
 
   # DDC/CI brightness needs unprivileged i2c access: the i2c group + udev rules
   # from hardware.i2c, with the session user added to that group.
