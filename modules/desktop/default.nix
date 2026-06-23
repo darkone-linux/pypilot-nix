@@ -98,6 +98,7 @@ in
           pkgs.chromium
           pkgs.evince
           pkgs.vlc
+          pkgs.gpsd
         ];
 
         hardware.graphics.enable = mkDefault true;
