@@ -1,10 +1,11 @@
 # development.nix — on-box developer & admin toolbox.
 #
 # Stay autonomous on the boat box without a workstation: editors (Helix +
-# Geany) plus curated essentials, system/network admin and Nix-project tooling.
-# Groups toggle independently and all default on, so a bare `enable` gives the
-# full kit. Lean by design — no heavy desktop suites — and each group is gated
-# by `lib.optionals` so a disabled group pulls nothing into the closure.
+# Geany), curated essentials, system/network admin, Nix-project tooling and the
+# on-board marine diagnostics (GPS/NMEA, CAN, SDR, GPIO — the OpenPlotter
+# toolbox equivalent). Groups toggle independently and all default on, so a bare
+# `enable` gives the full kit. Lean by design — no heavy desktop suites — and
+# each group is gated by `lib.optionals` so a disabled group pulls nothing in.
 #
 # Helix is a terminal editor (headless-friendly); Geany is graphical and only
 # useful where a desktop session runs. Disable `editor` to drop both.
@@ -171,6 +172,12 @@ in
       default = true;
       description = "Editors: Helix (terminal) and a dark-themed Geany (graphical).";
     };
+
+    marine = mkOption {
+      type = types.bool;
+      default = true;
+      description = "On-board diagnostics: GPS/NMEA, CAN/NMEA2000, network, SDR, GPIO.";
+    };
   };
 
   config = mkIf cfg.enable {
@@ -244,6 +251,32 @@ in
           nixfmt
           statix
           treefmt
+        ]
+      )
+
+      # On-board navigation diagnostics (the OpenPlotter toolbox equivalent).
+      ++ optionals cfg.marine (
+        with pkgs;
+        [
+
+          # GPS / NMEA — gpsd clients (cgps, gpsmon, gpspipe, gpsdecode).
+          gpsd
+          canboat # NMEA2000 analyzer / converter (analyzer, n2kd)
+
+          # CAN / NMEA2000 — available on every host, not just the MacArthur HAT.
+          can-utils # candump, cansniffer, canbusload, slcand
+
+          # Network (complements nmap/tcpdump/iw already in admin).
+          ethtool
+          mtr # traceroute + ping
+          iperf3 # throughput testing
+
+          # SDR / radio.
+          rtl-sdr # rtl_fm, rtl_power, rtl_test
+          multimon-ng # decode POCSAG / AFSK / AIS audio
+
+          # GPIO.
+          libgpiod # gpioget, gpioset, gpiomon, gpiodetect
         ]
       );
   };
