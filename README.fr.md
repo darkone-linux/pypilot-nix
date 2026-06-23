@@ -197,6 +197,29 @@ nix run .#lab-vm
 nixos-rebuild switch --flake .#lab-vm --target-host skipper@lab-vm.local --use-remote-sudo
 ```
 
+## Commandes Just
+
+Le `Justfile` regroupe les commandes du quotidien. Lancez `just` (ou
+`just --list`) pour toutes les voir.
+
+| Recette                   | Rôle                                                   |
+| ------------------------- | ------------------------------------------------------ |
+| `just clean`              | `fix` + `check` + `format` (avant chaque commit)       |
+| `just sd-image <host>`    | Construit l'image SD d'un hôte                         |
+| `just apply <host> [act]` | Déploie un hôte par SSH (`act` vaut `switch` par défaut) |
+| `just update`             | Met à jour les inputs, commit `flake.lock` s'il change |
+| `just gc <host>`          | Libère de l'espace sur un hôte puis régénère son boot  |
+
+```shell
+just apply lab-rpi4          # nixos-rebuild switch sur lab-rpi4
+just apply lab-rpi4 boot     # prépare pour le prochain boot au lieu de switcher
+just update                  # bump des inputs, commit auto du lockfile
+just gc lab-rpi4             # nix-collect-garbage -d par SSH, rafraîchit le boot
+```
+
+Les recettes de déploiement ciblent `skipper@<host>` par SSH et utilisent le
+`sudo` de l'hôte : la clé `skipper` doit être autorisée et le compte sudoer.
+
 ## Documentation
 
 Voir [`doc/pypilot-nix-specs.md`](doc/pypilot-nix-specs.md) pour la conception
