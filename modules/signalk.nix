@@ -51,6 +51,22 @@ let
     ];
   };
 
+  # gpsd as the GPS source: gpsd owns the serial port (and feeds the clock);
+  # signalk reads position/time over the gpsd protocol, no manual connection.
+  gpsdProviders = optional cfg.gpsdSource {
+    id = "gpsd";
+    enabled = true;
+    pipeElements = [
+      {
+        type = "providers/gpsd";
+        options = {
+          host = "localhost";
+          port = "2947";
+        };
+      }
+    ];
+  };
+
   # pypilot autopilot as a TCP NMEA0183 source (port 20220).
   pypilotProviders = optionals cfg.pypilotIntegration [
     {
@@ -91,7 +107,7 @@ let
     ssl = false;
     mdns = true;
     port = cfg.port;
-    pipedProviders = pypilotProviders ++ aisProviders;
+    pipedProviders = gpsdProviders ++ pypilotProviders ++ aisProviders;
   };
 
   settingsFile = settingsFormat.generate "signalk-settings.json" (
@@ -131,6 +147,13 @@ in
       type = types.bool;
       default = true;
       description = "Add the pypilot TCP NMEA0183 source (localhost:20220) to the default providers.";
+    };
+
+    gpsdSource = mkOption {
+      type = types.bool;
+      default = config.services.navigation.gps.enable or false;
+      defaultText = lib.literalExpression "config.services.navigation.gps.enable";
+      description = "Add a gpsd source (localhost:2947) so the GPS adopted by gpsd reaches Signal K without a manual connection.";
     };
 
     settings = mkOption {
