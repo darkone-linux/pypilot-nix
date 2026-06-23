@@ -16,6 +16,8 @@ tmp/
 *.iso
 *.lock
 *.log
+__pycache__/
+*.pyc
 !README*.md
 !TODO*.md
 
