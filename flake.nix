@@ -139,6 +139,8 @@
         opencpn = ./modules/opencpn.nix;
         desktop = ./modules/desktop;
         development = ./modules/development.nix;
+        cellular = ./modules/cellular.nix;
+        hotspot = ./modules/hotspot.nix;
       };
 
       # All hosts share the navigation modules; add boats/benches here without

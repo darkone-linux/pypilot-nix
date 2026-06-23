@@ -228,6 +228,8 @@ in
     ./gps-time.nix
     ./desktop
     ./development.nix
+    ./cellular.nix
+    ./hotspot.nix
   ];
 
   options.services.navigation = {
