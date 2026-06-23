@@ -67,6 +67,12 @@ in
   console.keyMap = "fr";
   services.xserver.xkb.layout = "fr";
 
+  # Coloured [user]-[host]-[dir]-> prompt, all hosts and users (incl. root);
+  # overrides the default NixOS prompt. promptvars expands ${USER}/${HOSTNAME}.
+  programs.bash.promptInit = ''
+    PS1='\[\033[1;34m\][\[\033[0m\]\[\033[1;36m\]''${USER}\[\033[1;34m\]]-[\[\033[1;33m\]''${HOSTNAME}\[\033[1;34m\]]-[\[\033[1;32m\]\W\[\033[1;34m\]]->\[\033[0m\] '
+  '';
+
   # Resolve <host>.local (deploy workflow) and let pypilot/signalk discover each
   # other over zeroconf.
   services.avahi = {
