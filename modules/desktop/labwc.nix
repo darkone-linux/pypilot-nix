@@ -49,6 +49,10 @@ let
     xgps = "${pkgs.gpsd}/bin/xgps";
     calculator = "${pkgs.qalculate-gtk}/bin/qalculate-gtk";
 
+    # Hardware scan: list serial nav devices + paste-ready Nix snippets, held
+    # open in a terminal so the output can be read and copied.
+    scanHw = ''${pkgs.foot}/bin/foot --title="Scan Matériel" ${pkgs.bash}/bin/bash -c "${pkgs.nav-discover}/bin/nav-discover; echo; read -n1 -rsp 'Appuyez sur une touche pour fermer...'"'';
+
     # PyPilot front-ends: three wx GUIs from the daemon package, plus its web UI
     # (served by pypilot_web on :8000) shown in a Chromium app window.
     pypilotControl = "${pypilot.package}/bin/pypilot_control";
@@ -294,6 +298,7 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
         <menu id="tools-menu" label="Outils" icon="applications-utilities">
           <item label="xgps" icon="org.gnome.Maps"><action name="Execute"><command>${bin.xgps}</command></action></item>
           <item label="Calculatrice" icon="qalculate"><action name="Execute"><command>${bin.calculator}</command></action></item>
+          <item label="Scan Matériel" icon="utilities-terminal"><action name="Execute"><command>${bin.scanHw}</command></action></item>
           <item label="Recharger labwc" icon="system-restart"><action name="Reconfigure" /></item>
         </menu>
         <separator />
