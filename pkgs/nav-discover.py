@@ -57,7 +57,6 @@ def describe(dev):
         "product": props.get("ID_MODEL_ID"),
         "serial": props.get("ID_SERIAL_SHORT") or props.get("ID_USB_SERIAL_SHORT"),
         "port": port_path(dev),
-        "driver": props.get("ID_USB_DRIVER") or (dev.parent and dev.parent.driver),
     }
 
 
@@ -136,7 +135,7 @@ def match_block(info):
     return None
 
 
-def emit(info, role, baud, sniffed):
+def emit(info, role, baud, sniffed, used):
     """Print the Nix snippet for one device (with a context comment header)."""
 
     ident = " ".join(
@@ -165,7 +164,16 @@ def emit(info, role, baud, sniffed):
         print("# no stable identifier (USB id or port) — cannot pin this device\n")
         return
 
-    name = ROLE_SYMLINK.get(role, "ttyOP_nmea")
+    # Keep registry keys unique within a scan (two NMEA sensors would otherwise
+    # both suggest ttyOP_nmea — a duplicate attribute when pasted).
+    base = ROLE_SYMLINK.get(role, "ttyOP_nmea")
+    name = base
+    suffix = 2
+    while name in used:
+        name = f"{base}{suffix}"
+        suffix += 1
+    used.add(name)
+
     print(
         f"services.navigation.serialDevices.{name} = {{\n"
         f"  {match}\n"
@@ -192,6 +200,9 @@ def main():
         print("# no serial devices found", file=sys.stderr)
         return
 
+    # Track suggested registry keys to keep them unique across the scan.
+    used = set()
+
     for dev in devices:
         info = describe(dev)
         if args.sniff:
@@ -202,9 +213,9 @@ def main():
                 )
                 print(f"# {info['devname']}  {ident or 'no USB id'}  — {err}\n")
                 continue
-            emit(info, role, baud, sniffed=True)
+            emit(info, role, baud, sniffed=True, used=used)
         else:
-            emit(info, guess_role(info), baud=38400, sniffed=False)
+            emit(info, guess_role(info), baud=38400, sniffed=False, used=used)
 
 
 if __name__ == "__main__":
