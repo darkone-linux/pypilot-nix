@@ -19,10 +19,23 @@
   services.navigation.opencpn.plugins = [ pkgs.opencpn-plugin-pypilot ];
   services.navigation.desktop.enable = true;
 
-  # Stable /dev names from USB IDs (`lsusb`). Set to enable gps0 + gpsd time
-  # sync and the autopilot motor symlink.
-  # services.navigation.gps.vendorId = "1546";
-  # services.navigation.gps.productId = "01a7";
+  # Pin USB gear by its `lsusb` ID (idVendor:idProduct, hex lowercase). Why per
+  # host: generic serial chips (PL2303, CP210x, FTDI) share IDs across devices,
+  # so the global autodetect lists stay conservative — pin yours here.
+  #
+  # - GPS: set gps.vendorId/productId → udev makes /dev/gps0, gpsd adopts it
+  #   (plug-and-play + clock sync), and pypilot's serialprobe skips the port.
+  # - AIS: add the receiver's ID to ais.autodetectIds → symlinked to the device
+  #   signalk reads (this *replaces* the bench default; list every receiver).
+  # - Motor: set motor.vendorId/productId → /dev/pypilot_motor for the autopilot.
+  #
+  # Default GPS below is the bench Prolific PL2303; swap for the boat's receiver.
+  services.navigation.gps.vendorId = "067b";
+  services.navigation.gps.productId = "2303";
+
+  # services.navigation.ais.autodetectIds = [
+  #   { vendorId = "1234"; productId = "5678"; }
+  # ];
   # services.navigation.motor.vendorId = "2341";
   # services.navigation.motor.productId = "0042";
 }
