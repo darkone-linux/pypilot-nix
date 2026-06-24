@@ -16,13 +16,13 @@
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "canboat";
-  version = "6.2.0";
+  version = "6.2.2";
 
   src = fetchFromGitHub {
     owner = "canboat";
     repo = "canboat";
     rev = "v${finalAttrs.version}";
-    hash = "sha256-ek2v7qsA4LYLJJkcq3ive3VSQ/orXOv9PzOBKKctr7k=";
+    hash = "sha256-ptuhp5cvMbfc2+RmdygzsegGwWgIgkgAk3NQ76j1pMw=";
   };
 
   enableParallelBuilding = true;
