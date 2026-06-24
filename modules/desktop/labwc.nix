@@ -273,10 +273,10 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
       ${lib.optionalString cfg.opencpnMaximize ''
         <windowRules>
 
-          <!-- OpenCPN maximized on map: fills the screen below the waybar panel
-               (its reserved zone), like the maximize button. Match is on the
-               XWayland WM_CLASS, case-insensitive. -->
-          <windowRule identifier="opencpn">
+          <!-- Maximize OpenCPN's main window on startup only: matchOnce hits the
+               first window with this WM_CLASS (the chart window, mapped first),
+               so option/toolbox dialogs that share the class are left alone. -->
+          <windowRule identifier="opencpn" matchOnce="true">
             <action name="Maximize" />
           </windowRule>
         </windowRules>

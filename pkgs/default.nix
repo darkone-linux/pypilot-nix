@@ -51,10 +51,11 @@ in
   # `$out/XyGrib/data`, but its data-dir search never finds it on NixOS: the
   # binary's "look next to me" path resolves to `/nix` and nothing else matches,
   # so the app runs with no background map AND blank/black toolbar icons.
-  # Fix without a rebuild: expose the tree under `<share>/xygrib/data` (where the
-  # XDG_DATA_DIRS search looks) and bake that share dir into the binary's own
-  # XDG_DATA_DIRS — the labwc session passes an empty one, so relying on the
-  # system profile is not enough. Once found, maps and icons both work.
+  # Fix without a rebuild: expose the tree where the XDG_DATA_DIRS search looks
+  # (`<share>/<org>/<app>/data`, i.e. openGribs/XyGrib — set by main.cpp before
+  # the search) and bake that share dir into the binary's own XDG_DATA_DIRS — the
+  # labwc session passes an empty one, so the system profile alone is not enough.
+  # Once found, maps and icons both work.
   xygrib =
     let
       base = prev.xygrib;
@@ -64,8 +65,8 @@ in
       paths = [ base ];
       nativeBuildInputs = [ final.makeWrapper ];
       postBuild = ''
-        mkdir -p "$out/share/xygrib"
-        ln -s ${base}/XyGrib/data "$out/share/xygrib/data"
+        mkdir -p "$out/share/openGribs/XyGrib"
+        ln -s ${base}/XyGrib/data "$out/share/openGribs/XyGrib/data"
 
         rm "$out/bin/xygrib"
         makeWrapper ${base}/bin/xygrib "$out/bin/xygrib" \
