@@ -20,4 +20,5 @@ __pycache__/
 *.pyc
 !README*.md
 !TODO*.md
+!CHANGELOG*.md
 

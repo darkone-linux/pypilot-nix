@@ -90,3 +90,63 @@ gc host:
     ssh "skipper@{{ host }}" \
       "sudo nix-collect-garbage -d && \
        sudo /nix/var/nix/profiles/system/bin/switch-to-configuration boot"
+
+#==============================================================================
+# Release
+#==============================================================================
+
+# Promote the Unreleased changelog to <version>, commit and tag v<version>
+[group('release')]
+bump version:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    v="{{ version }}"
+    tag="v$v"
+    repo="https://github.com/darkone-linux/pypilot-nix"
+    say() { echo "[ {{ CYAN }}NPY{{ NORMAL }} ] BUMP • $*"; }
+
+    # Guard: strict semver, clean tree, fresh tag.
+    if [[ ! "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      say "invalid version '$v' (expected X.Y.Z)." >&2
+      exit 1
+    fi
+    if ! git diff --quiet || ! git diff --cached --quiet; then
+      say "working tree not clean, commit or stash first." >&2
+      exit 1
+    fi
+    if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+      say "tag $tag already exists." >&2
+      exit 1
+    fi
+
+    prev="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+    date="$(date +%Y-%m-%d)"
+
+    # Open a new version section right under the Unreleased heading.
+    awk -v ver="$v" -v d="$date" '
+      /^## \[Unreleased\]/ && !seen {
+        print; print ""; print "## [" ver "] - " d; seen = 1; next
+      }
+      { print }
+    ' CHANGELOG.md > CHANGELOG.md.tmp
+
+    # First release links to its tag; later ones diff against the previous tag.
+    if [[ -n "$prev" ]]; then
+      newlink="[$v]: $repo/compare/$prev...$tag"
+    else
+      newlink="[$v]: $repo/releases/tag/$tag"
+    fi
+
+    # Re-point Unreleased at the new tag and insert the version link.
+    awk -v tag="$tag" -v repo="$repo" -v newlink="$newlink" '
+      /^\[Unreleased\]:/ {
+        print "[Unreleased]: " repo "/compare/" tag "...HEAD"; print newlink; next
+      }
+      { print }
+    ' CHANGELOG.md.tmp > CHANGELOG.md
+    rm -f CHANGELOG.md.tmp
+
+    git add CHANGELOG.md
+    git commit -m "chore(release): $tag"
+    git tag -a "$tag" -m "Release $tag"
+    say "tagged $tag — publish with: git push origin main $tag"
