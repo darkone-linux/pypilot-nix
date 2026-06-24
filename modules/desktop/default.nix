@@ -69,10 +69,14 @@ in
       description = "Launch OpenCPN on session start (off by default — open it manually).";
     };
 
-    opencpnFullscreen = mkOption {
+    opencpnMaximize = mkOption {
       type = types.bool;
       default = true;
-      description = "Launch OpenCPN full-screen (-f); the helm wants the whole display. Toggle in-app with F11.";
+      description = ''
+        Maximize OpenCPN on launch (labwc window rule): it fills the screen below
+        the top panel, like clicking the window's maximize button — not the F11
+        full-screen mode. labwc only.
+      '';
     };
 
     autostart = mkOption {

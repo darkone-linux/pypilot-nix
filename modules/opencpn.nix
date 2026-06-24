@@ -44,15 +44,32 @@ let
   home = user.home or "/home/${cfg.user}";
   group = user.group or "users";
 
-  # Initial NMEA connection to signalk. opencpn rewrites opencpn.conf on exit,
-  # so this only bootstraps the first run; the serialized DataConnections field
-  # is opencpn-version sensitive and validated on the bench (level 3).
+  # Per-plugin enable stanzas. OpenCPN keys plugins by their .so filename and
+  # hides ones whose CompatOS differs from the host's; locally-built plugins
+  # (e.g. pypilot) report the nixpkgs build target, so the empty value
+  # auto-detected on NixOS hides them. Pinning CompatOS + bEnabled=1 makes them
+  # load and appear without a manual pass through the GUI.
+  pluginEnableSections = concatStringsSep "\n" (
+    map (so: ''
+      [PlugIns/${so}]
+      bEnabled=1'') cfg.enabledPlugins
+  );
+
+  # Initial seed: data connections, host plugin-compat and the enabled plugins.
+  # opencpn rewrites opencpn.conf on exit, so this only bootstraps the first run;
+  # the serialized fields are opencpn-version sensitive (validated on the bench).
   confFile = pkgs.writeText "opencpn.conf" ''
+    [Settings]
+    CompatOS=${cfg.compatOS}
+    CompatOsVersion=${cfg.compatOsVersion}
+
     [Settings/NMEADataSource]
     DataConnections=${cfg.dataConnection}
 
     [PlugIns]
     CatalogExpert=1
+    LatestCatalogDownloaded=master
+    ${pluginEnableSections}
     ${cfg.extraConfig}
   '';
 
@@ -141,6 +158,34 @@ in
         is version-sensitive: if a seeded value is rejected, create the connection
         once in the GUI and copy its `DataConnections=` line here.
       '';
+    };
+
+    enabledPlugins = mkOption {
+      type = types.listOf types.str;
+      default = [ ];
+      example = [ "libpypilot_pi.so" ];
+      description = ''
+        Plugin shared-object names marked enabled in the seeded opencpn.conf
+        (`[PlugIns/<name>] bEnabled=1`). Pair with `plugins`; without this the
+        plugin ships but stays absent from OpenCPN's list until enabled by hand.
+      '';
+    };
+
+    compatOS = mkOption {
+      type = types.str;
+      default = "debian-arm64";
+      description = ''
+        Host CompatOS string OpenCPN uses to judge plugin compatibility. The
+        bundled plugins report the nixpkgs build target; the empty value
+        auto-detected on NixOS hides them, so pin the matching value (verified on
+        the Pi bench: debian-arm64).
+      '';
+    };
+
+    compatOsVersion = mkOption {
+      type = types.str;
+      default = "12";
+      description = "CompatOsVersion paired with compatOS (Debian 12 on the bench).";
     };
 
     extraConfig = mkOption {

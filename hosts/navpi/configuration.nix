@@ -17,6 +17,7 @@
   # Chartplotter desktop on the helm screen (labwc, always-on).
   services.navigation.opencpn.enable = true;
   services.navigation.opencpn.plugins = [ pkgs.opencpn-plugin-pypilot ];
+  services.navigation.opencpn.enabledPlugins = [ "libpypilot_pi.so" ];
   services.navigation.desktop.enable = true;
 
   # Pin USB gear by its `lsusb` ID (idVendor:idProduct, hex lowercase). Why per

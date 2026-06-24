@@ -17,6 +17,7 @@
   # Bench display: chartplotter desktop (labwc default, always-on).
   services.navigation.opencpn.enable = true;
   services.navigation.opencpn.plugins = [ pkgs.opencpn-plugin-pypilot ];
+  services.navigation.opencpn.enabledPlugins = [ "libpypilot_pi.so" ];
   services.navigation.desktop.enable = true;
 
   # On-box dev/admin toolbox: Zed editor + essentials, admin and Nix tooling.

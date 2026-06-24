@@ -35,9 +35,7 @@ let
 
   # Raw binaries, full store paths (waybar/labwc inherit no PATH).
   bin = {
-
-    # -f opens OpenCPN full-screen on the helm (F11 toggles in-app).
-    opencpn = "${opencpn.finalPackage}/bin/opencpn${lib.optionalString cfg.opencpnFullscreen " -f"}";
+    opencpn = "${opencpn.finalPackage}/bin/opencpn";
     xygrib = "${pkgs.xygrib}/bin/xygrib";
     terminal = "${pkgs.foot}/bin/foot";
     notes = "${pkgs.featherpad}/bin/featherpad";
@@ -272,6 +270,17 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
           </mousebind>
         </context>
       </mouse>
+      ${lib.optionalString cfg.opencpnMaximize ''
+        <windowRules>
+
+          <!-- OpenCPN maximized on map: fills the screen below the waybar panel
+               (its reserved zone), like the maximize button. Match is on the
+               XWayland WM_CLASS, case-insensitive. -->
+          <windowRule identifier="opencpn">
+            <action name="Maximize" />
+          </windowRule>
+        </windowRules>
+      ''}
     </labwc_config>
   '';
 
