@@ -137,12 +137,11 @@ Cette configuration unique câble automatiquement toute la plomberie décrite ci
    [gpsd :2947]
       │ gpsd protocol
       ▼
-[signalk-server :3000]  ◄────── [pypilot :20220] (NMEA TCP + zeroconf autodiscovery)
-      │                                 ▲
-      │ NMEA TCP :10110                 │ route instructions
-      ▼                                 │
-   [opencpn] ──── plugin pypilot ───────┘
-                  TCP :23322
+[signalk-server :3000] ◄─────── [pypilot :20220] (NMEA TCP)
+      ▲                              ▲   │
+      │ Signal K (entrée)            │   │ NMEA0183 :20220 (in/out)
+      │                              │   ▼
+   [opencpn] ─── plugin pypilot_pi ──┘  (client :23322, Host=127.0.0.1)
 ```
 
 ### 1. Règles udev (Serial → Devices)
@@ -225,18 +224,28 @@ signalk.settings.pipedProviders = [{
 }];
 ```
 
-### 4. opencpn ↔ signalk (lecture NMEA)
+### 4. opencpn ↔ signalk + pypilot (connexions de données)
 
-opencpn se connecte au port NMEA TCP `:10110` exposé par signalk. Généré dans `~/.opencpn/opencpn.conf` :
+Deux connexions semées dans `~/.opencpn/opencpn.conf` (champ `DataConnections`, format
+24 champs `ConnectionParams` d'OpenCPN 5.12, jointes par `|`) :
+
+- **signalk** (entrée) : protocole Signal K vers le hub local `localhost:3000` ;
+- **pypilot** (entrée/sortie) : NMEA0183 TCP `localhost:20220`.
+
+`modules/opencpn.nix` reconstruit le défaut à partir des chaînes éprouvées au banc, chacune
+conditionnée à son service. `pypilot → signalk` reste automatique (provider TCP `:20220`
+posé par `signalk.nix`).
 
 ```ini
 [Settings/NMEADataSource]
-DataConnections=0;2;localhost;10110;0;0;...
+DataConnections=1;3;localhost;3000;0;;4800;1;0;0;;0;;0;0;0;0;1;;1;;0;0;|1;0;localhost;20220;0;;...
 ```
 
-### 5. opencpn → pypilot (envoi de route)
+### 5. plugin opencpn pypilot_pi (contrôle autopilote)
 
-Via le plugin `pypilot_pi` (TCP `:23322`). Autoconfiguration si pypilot est en localhost.
+Le plugin `pypilot_pi` dialogue avec le serveur pypilot (client pypilot `:23322`). Sa
+plomberie déclarative — **activation** et **hôte cible** — est détaillée dans « Points de
+difficulté ».
 
 ---
 
@@ -279,9 +288,24 @@ systemd.services.signalk = {
 };
 ```
 
-### opencpn : configuration XML/INI
+### opencpn : configuration XML/INI + activation des plugins
 
-opencpn utilise un fichier `~/.opencpn/opencpn.conf` modifié au runtime. Solution : générer un fichier de config initial via `writeText`, déployé par un activation script uniquement si absent (première installation).
+opencpn réécrit `~/.opencpn/opencpn.conf` au runtime. Solution : semer une config initiale via `writeText`, copiée par tmpfiles (`C`) uniquement si absente (première installation) — les réglages GUI ultérieurs sont préservés. Corollaire : adopter un nouveau défaut sur un Pi déjà configuré demande de supprimer le `.conf` pour re-semer.
+
+Plomberie du plugin `pypilot_pi`, à semer dans ce même fichier (sinon le plugin reste invisible ou mal connecté) :
+
+- **Compatibilité** : opencpn masque les plugins dont le `CompatOS` diffère de l'hôte. La valeur auto-détectée sur NixOS (vide) cache les plugins compilés localement → fixer `[Settings] CompatOS=debian-arm64` + `CompatOsVersion=12` (cible nixpkgs, validée au banc).
+- **Activation** : opencpn indexe les plugins par nom de `.so` → `[PlugIns/libpypilot_pi.so] bEnabled=1` (option `opencpn.enabledPlugins`), plus `[PlugIns] LatestCatalogDownloaded=master`.
+- **Hôte pypilot** : le plugin a un défaut codé en dur `Host=192.168.14.1` (`AutoDiscover` déjà à 0). L'orchestrateur `navigation.nix` sème `[PlugIns/pypilot] Host=127.0.0.1` quand opencpn et pypilot tournent ensemble → connexion loopback out-of-the-box.
+
+### xygrib : répertoire de données introuvable (cartes + icônes)
+
+xygrib embarque ses données (cartes côtières GSHHS/RANGS + icônes de la barre d'outils) sous `$out/XyGrib/data`, mais **ne les trouve pas** sur NixOS. Symptômes : aucun fond de carte **et** icônes noires/vides (mêmes données manquantes). Deux subtilités ont fait échouer les premières tentatives :
+
+- la session labwc transmet un `XDG_DATA_DIRS` **vide** aux enfants → s'appuyer sur le profil système ne suffit pas ;
+- `main.cpp` fixe `org=openGribs`, `app=XyGrib` **avant** la recherche, donc `QStandardPaths` cherche `<share>/openGribs/XyGrib/data` (et non `<share>/xygrib/...`).
+
+Solution (overlay, sans recompilation) : exposer l'arbre sous `share/openGribs/XyGrib/data` **et** graver ce `share` dans le `XDG_DATA_DIRS` du binaire via un wrapper (`makeWrapper --prefix`). Les niveaux GSHHS fournis (2–4) couvrent le fond de base ; la très haute résolution (0–1) reste un téléchargement séparé amont.
 
 ### Données de calibration pypilot
 
