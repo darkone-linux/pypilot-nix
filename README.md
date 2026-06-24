@@ -12,6 +12,8 @@
 navigation on Raspberry Pi: autopilot, data hub and chartplotter, reproducible
 and version-controlled.
 
+![PyPilot Nix Screenshot](doc/pypilot-nix-sc.png)
+
 The whole stack comes up from a single NixOS option, builds into a bootable SD
 image per boat, and updates over SSH like any other NixOS machine. Targets:
 Raspberry Pi 4 (main) and Pi 5 (experimental) on `aarch64-linux`, with the

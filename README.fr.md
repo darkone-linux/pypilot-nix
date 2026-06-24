@@ -12,6 +12,8 @@
 maritime embarquée sur Raspberry Pi : pilote automatique, hub de données et
 traceur de cartes, reproductibles et versionnés.
 
+![PyPilot Nix Screenshot](doc/pypilot-nix-sc.png)
+
 Toute la pile démarre depuis une seule option NixOS, se construit en une image
 SD bootable et se met à jour par SSH comme n'importe quelle machine
 NixOS. Cibles : Raspberry Pi 4 (principal) et Pi 5 (expérimental) sur
