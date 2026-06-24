@@ -9,7 +9,8 @@
 # Slow apps (OpenCPN, browser) pop a "starting…" notification (mako) so the
 # helmsman doesn't click twice. Media keys + waybar buttons drive screen
 # brightness over DDC/CI (ddcutil) and volume via PipeWire (wpctl) — brightness
-# matters for day/night navigation.
+# matters for day/night navigation. Print (full) / Shift+Print (region) capture
+# the screen via grim/slurp into ~/Captures.
 
 {
   config,
@@ -139,6 +140,27 @@ let
       ${pkgs.libnotify}/bin/notify-send -t 1500 "Luminosité" "''${val}%" || true
     ''}";
 
+  # Screenshots: grim grabs the active output, slurp picks a region. Files land
+  # in ~/Captures with a timestamp; mako confirms the save. Region mode exits
+  # quietly if slurp is cancelled (empty geometry would make grim fail).
+  screenshot =
+    mode:
+    "${pkgs.writeShellScript "screenshot-${mode}" ''
+      dir="$HOME/Captures"
+      ${pkgs.coreutils}/bin/mkdir -p "$dir"
+      file="$dir/$(${pkgs.coreutils}/bin/date +%Y-%m-%d_%H-%M-%S).png"
+      ${
+        if mode == "region" then
+          ''
+            geom=$(${pkgs.slurp}/bin/slurp) || exit 0
+            ${pkgs.grim}/bin/grim -g "$geom" "$file"
+          ''
+        else
+          ''${pkgs.grim}/bin/grim "$file"''
+      }
+      ${pkgs.libnotify}/bin/notify-send -t 2000 "Capture d'écran" "Enregistrée : $file" || true
+    ''}";
+
   # Volume via PipeWire's wpctl (capped at 100%). Works once a sink exists.
   wpctl = "${pkgs.wireplumber}/bin/wpctl";
   vol = {
@@ -246,6 +268,10 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
         <keybind key="C-A-n"><action name="Execute"><command>${bin.notes}</command></action></keybind>
         <keybind key="C-A-w"><action name="Execute"><command>${launch.browser}</command></action></keybind>
         <keybind key="C-A-s"><action name="Execute"><command>${launch.signalk}</command></action></keybind>
+
+        <!-- Print grabs the whole screen, Shift+Print a selected region. -->
+        <keybind key="Print"><action name="Execute"><command>${screenshot "full"}</command></action></keybind>
+        <keybind key="S-Print"><action name="Execute"><command>${screenshot "region"}</command></action></keybind>
 
         <!-- Brightness (DDC/CI) and volume (PipeWire) media keys. -->
         <keybind key="XF86_MonBrightnessUp"><action name="Execute"><command>${brightness "up"}</command></action></keybind>
@@ -483,7 +509,10 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     pkgs.font-awesome
     pkgs.ddcutil
     pkgs.wireplumber
+    pkgs.grim
+    pkgs.slurp
     pkgs.gawk
+    pkgs.geeqie
     navBlueTheme
     signalkDesktop
   ];
