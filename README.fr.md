@@ -9,14 +9,13 @@
 [English](README.md) | **Français**
 
 **pypilot-nix** est une distribution NixOS déclarative pour la navigation
-maritime embarquée sur Raspberry Pi — l'équivalent reproductible et versionné
-d'OpenPlotter.
+maritime embarquée sur Raspberry Pi : pilote automatique, hub de données et
+traceur de cartes, reproductibles et versionnés.
 
-Toute la pile pilote automatique / hub de données / traceur de cartes démarre
-depuis une seule option NixOS, se construit en une image SD bootable par bateau,
-et se met à jour par SSH comme n'importe quelle machine NixOS. Elle cible le
-Raspberry Pi 4 (principal) et le Pi 5 (expérimental) sur `aarch64-linux`, avec le
-**Pypilot HAT** ou le **MacArthur HAT**.
+Toute la pile démarre depuis une seule option NixOS, se construit en une image
+SD bootable et se met à jour par SSH comme n'importe quelle machine
+NixOS. Cibles : Raspberry Pi 4 (principal) et Pi 5 (expérimental) sur
+`aarch64-linux`, avec le **Pypilot HAT** ou le **MacArthur HAT**.
 
 ## Fonctionnalités
 
@@ -27,9 +26,9 @@ Raspberry Pi 4 (principal) et le Pi 5 (expérimental) sur `aarch64-linux`, avec 
 - **Horloge GPS hors-ligne** : `gpsd` et `chrony` règlent l'heure sans Internet.
 - **HAT matériels** : bus I2C, UART et SPI, modules noyau et overlays device-tree.
 - **Périphériques stables** : symlinks udev `/dev/gps0` et `/dev/pypilot_motor` depuis les IDs USB.
-- **Découverte de périphériques** : `nav-discover` liste le matériel série et produit du Nix prêt à coller ; un registre `serialDevices` câble udev + Signal K.
+- **Découverte de périphériques** : `nav-discover` liste le matériel série et produit du Nix prêt à coller ; un registre `serialDevices` câble udev et Signal K.
 - **Images SD par hôte** : une image nommée `pypilot-nix-<host>.img.zst` par machine.
-- **Testé en CI** : vérifications d'import des paquets plus un test d'intégration en VM NixOS.
+- **Testé en CI** : vérifications d'import des paquets, plus un test d'intégration en VM NixOS.
 - **Headless** : SSH, mDNS `.local`, un compte admin `skipper`, aucun écran requis.
 
 ## Configuration
@@ -46,7 +45,7 @@ nom de la machine et le HAT :
 
   networking.hostName = "navpi";
 
-  # HAT installé sur le Pi — au choix :
+  # HAT installé sur le Pi, au choix :
   services.navigation.hardware = "pypilot-hat";
   # services.navigation.hardware = "macarthur-hat";
 
@@ -70,17 +69,17 @@ Hôtes fournis dans le flake :
 
 ¹ Le support de boot du Pi 5 est expérimental (image aarch64 générique).
 
-Ajoutez un bateau ou un banc en déclarant une entrée `nixosConfigurations` de
-plus dans `flake.nix` et en déposant un `hosts/<host>/configuration.nix` ; les
+Pour ajouter un bateau ou un banc, déclarer une entrée `nixosConfigurations` de
+plus dans `flake.nix`, puis déposer un `hosts/<host>/configuration.nix` ; les
 modules sont partagés, aucune logique n'est dupliquée. L'ensemble des options
 vit dans `modules/navigation.nix`.
 
-## Périphériques série & découverte
+## Périphériques série et découverte
 
 Le matériel maritime (AIS, GPS, sondes profondeur/vent, contrôleur moteur du
-pilote automatique) se branche en port série USB ou soudé. pypilot-nix les câble
-de façon déclarative via un registre unique, et fournit un CLI de découverte pour
-le remplir — l'équivalent reproductible de l'app « Serial » d'OpenPlotter.
+pilote automatique) se connecte via USB ou HAT. pypilot-nix le câble de façon
+déclarative via un registre unique, et fournit un CLI de découverte pour le
+remplir.
 
 ### Le registre `serialDevices`
 
@@ -95,23 +94,25 @@ services.navigation.serialDevices.ttyOP_ais = {
 };
 ```
 
-- **`match`** épingle le périphérique, comme le *remember* d'OpenPlotter : par
-  `vendorId` + `productId` USB (avec `serial` optionnel pour distinguer des
-  adaptateurs identiques), ou par `port` (un chemin device-tree tel que
-  `fe201000.serial:0.0`) pour un UART soudé sans ID USB.
+- **`match`** épingle le périphérique :
+  - par `vendorId` + `productId` USB (avec `serial` optionnel pour distinguer
+    des adaptateurs identiques) ;
+  - ou par `port` (un chemin device-tree tel que `fe201000.serial:0.0`) pour un
+    UART soudé sans ID USB.
 - **`role`** détermine le câblage :
 
-  | role       | symlink udev | service | provider Signal K       |
-  | ---------- | ------------ | ------- | ----------------------- |
-  | `ais`      | oui          | signalk | NMEA0183 série @ baud   |
-  | `nmea0183` | oui          | signalk | NMEA0183 série @ baud   |
+  | role       | symlink udev | service | provider Signal K        |
+  | ---------- | ------------ | ------- | ------------------------ |
+  | `ais`      | oui          | signalk | NMEA0183 série @ baud    |
+  | `nmea0183` | oui          | signalk | NMEA0183 série @ baud    |
   | `pilot`    | oui          | pypilot | aucun (géré par pypilot) |
 
-Le **GPS** garde son option dédiée, `services.navigation.gps` (gpsd possède le
-récepteur et discipline l'horloge). Le NMEA2000/CAN est géré par le module du
-HAT MacArthur, pas par ce registre. Les options historiques `ais`/`motor`
-fonctionnent toujours — elles sont traduites en interne vers des entrées du
-registre.
+> [!NOTE]
+> Le **GPS** garde son option dédiée, `services.navigation.gps` (gpsd possède le
+> récepteur et discipline l'horloge). Le NMEA2000/CAN est géré par le module du
+> HAT MacArthur, pas par ce registre. Les options historiques `ais`/`motor`
+> fonctionnent toujours : elles sont traduites en interne vers des entrées du
+> registre.
 
 ### Découvrir les périphériques avec `nav-discover`
 
@@ -123,19 +124,25 @@ nav-discover         # liste les périphériques, devine le rôle par l'ID USB
 nav-discover --sniff # ouvre chaque port, lit le NMEA0183 et détecte le rôle
 ```
 
-Boucle : brancher le matériel, lancer `nav-discover [--sniff]`, coller l'extrait
-dans `hosts/<host>/configuration.nix`, puis `nixos-rebuild switch`. Un GPS
-détecté produit un extrait `services.navigation.gps` ; l'AIS et les sondes
-produisent des entrées `serialDevices`.
+Boucle de travail :
 
-`--sniff` n'ouvre pas un port déjà tenu par gpsd ou Signal K : lancez donc le
-scan avant d'assigner le périphérique (ou arrêtez d'abord le service qui le
-consomme). Sur un hôte avec le bureau labwc, le même scan est accessible depuis
-le menu clic-droit sous **Outils → Scan Matériel**.
+1. Brancher le matériel.
+2. Lancer `nav-discover [--sniff]`.
+3. Coller l'extrait dans `hosts/<host>/configuration.nix`.
+4. Lancer `nixos-rebuild switch`.
+
+Un GPS détecté produit un extrait `services.navigation.gps` ; l'AIS et les
+sondes produisent des entrées `serialDevices`.
+
+> [!TIP]
+> `--sniff` n'ouvre pas un port déjà tenu par gpsd ou Signal K : lancer le scan
+> avant d'assigner le périphérique, ou arrêter d'abord le service qui le
+> consomme. Sur un hôte avec le bureau labwc, le même scan est accessible depuis
+> le menu clic-droit, **Outils → Scan Matériel**.
 
 ## Construire l'image SD
 
-Les images SD sont en `aarch64` : construisez-les sur une machine ARM native, un
+Les images SD sont en `aarch64` : construire sur une machine ARM native, un
 builder distant, ou un hôte x86_64 avec l'émulation `binfmt`. Le cache
 `nix-community` évite de recompiler le gros du système.
 
@@ -157,25 +164,27 @@ Hôtes avec image SD : `navpi`, `lab-rpi4`, `lab-rpi5`. Le `lab-vm` tourne en VM
 
 ### 1. Flasher la carte SD
 
-L'image est compressée en zstd ; décompressez et écrivez en un seul pipe
-(revérifiez la cible — le mauvais périphérique efface un disque) :
+L'image est compressée en zstd : décompresser et écrire en un seul pipe.
 
 ```shell
 zstd -dc result-navpi/sd-image/*.img.zst \
   | sudo dd of=/dev/sdX bs=4M status=progress conv=fsync
 ```
 
+> [!WARNING]
+> Revérifier la cible avant d'écrire : le mauvais périphérique efface un disque.
+
 ### 2. Premier démarrage
 
 L'image embarque SSH et mDNS activés, joignable à `<host>.local` :
 
-- utilisateur `skipper`, mot de passe `NixPypilot` (défaut d'amorçage — à changer)
-- pour des déploiements sans mot de passe, ajoutez votre clé à
-  `users.users.skipper.openssh.authorizedKeys.keys` et reconstruisez
+- utilisateur `skipper`, mot de passe `NixPypilot` (défaut d'amorçage, à changer) ;
+- pour des déploiements sans mot de passe, ajouter votre clé à
+  `users.users.skipper.openssh.authorizedKeys.keys` puis reconstruire.
 
 ### 3. Itérer par SSH
 
-Plus de reflashage ensuite : construisez en local et poussez la closure.
+Plus de reflashage ensuite : construire en local et pousser la closure.
 
 ```shell
 nixos-rebuild switch \
@@ -184,13 +193,14 @@ nixos-rebuild switch \
   --build-host localhost
 ```
 
-Pour un rollback automatique en cas d'échec, ajoutez l'input `deploy-rs` et
-utilisez `deploy .#<host>` (pas encore câblé ici).
+> [!TIP]
+> Pour un rollback automatique en cas d'échec, ajouter l'input `deploy-rs` et
+> utiliser `deploy .#<host>` (pas encore câblé ici).
 
 ### VM de labo (sans matériel)
 
-Lancez la VM de labo aarch64 persistante (sur un hôte aarch64, ou x86_64 avec
-émulation système complète binfmt), puis mettez-la à jour comme un vrai Pi :
+Lancer la VM de labo aarch64 persistante (sur un hôte aarch64, ou x86_64 avec
+émulation système complète binfmt), puis la mettre à jour comme un vrai Pi :
 
 ```shell
 nix run .#lab-vm
@@ -199,16 +209,16 @@ nixos-rebuild switch --flake .#lab-vm --target-host skipper@lab-vm.local --use-r
 
 ## Commandes Just
 
-Le `Justfile` regroupe les commandes du quotidien. Lancez `just` (ou
+Le `Justfile` regroupe les commandes du quotidien. Lancer `just` (ou
 `just --list`) pour toutes les voir.
 
-| Recette                   | Rôle                                                   |
-| ------------------------- | ------------------------------------------------------ |
-| `just clean`              | `fix` + `check` + `format` (avant chaque commit)       |
-| `just sd-image <host>`    | Construit l'image SD d'un hôte                         |
+| Recette                   | Rôle                                                     |
+| ------------------------- | -------------------------------------------------------- |
+| `just clean`              | `fix` + `check` + `format` (avant chaque commit)         |
+| `just sd-image <host>`    | Construit l'image SD d'un hôte                           |
 | `just apply <host> [act]` | Déploie un hôte par SSH (`act` vaut `switch` par défaut) |
-| `just update`             | Met à jour les inputs, commit `flake.lock` s'il change |
-| `just gc <host>`          | Libère de l'espace sur un hôte puis régénère son boot  |
+| `just update`             | Met à jour les inputs, commit `flake.lock` s'il change   |
+| `just gc <host>`          | Libère de l'espace sur un hôte puis régénère son boot    |
 
 ```shell
 just apply lab-rpi4          # nixos-rebuild switch sur lab-rpi4
@@ -217,8 +227,9 @@ just update                  # bump des inputs, commit auto du lockfile
 just gc lab-rpi4             # nix-collect-garbage -d par SSH, rafraîchit le boot
 ```
 
-Les recettes de déploiement ciblent `skipper@<host>` par SSH et utilisent le
-`sudo` de l'hôte : la clé `skipper` doit être autorisée et le compte sudoer.
+> [!NOTE]
+> Les recettes de déploiement ciblent `skipper@<host>` par SSH et utilisent le
+> `sudo` de l'hôte : la clé `skipper` doit être autorisée et le compte sudoer.
 
 ## Documentation
 

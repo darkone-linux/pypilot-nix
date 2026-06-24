@@ -9,14 +9,13 @@
 **English** | [Français](README.fr.md)
 
 **pypilot-nix** is a declarative NixOS distribution for embedded marine
-navigation on Raspberry Pi — a reproducible, version-controlled equivalent of
-OpenPlotter.
+navigation on Raspberry Pi: autopilot, data hub and chartplotter, reproducible
+and version-controlled.
 
-The whole autopilot / data-hub / chartplotter stack comes up from a single
-NixOS option, builds into a bootable SD image per boat, and updates over SSH
-like any other NixOS machine. It targets Raspberry Pi 4 (main) and Pi 5
-(experimental) on `aarch64-linux`, with the **Pypilot HAT** or the
-**MacArthur HAT**.
+The whole stack comes up from a single NixOS option, builds into a bootable SD
+image per boat, and updates over SSH like any other NixOS machine. Targets:
+Raspberry Pi 4 (main) and Pi 5 (experimental) on `aarch64-linux`, with the
+**Pypilot HAT** or the **MacArthur HAT**.
 
 ## Features
 
@@ -46,7 +45,7 @@ the HAT:
 
   networking.hostName = "navpi";
 
-  # HAT fitted on the Pi — pick one:
+  # HAT fitted on the Pi, pick one:
   services.navigation.hardware = "pypilot-hat";
   # services.navigation.hardware = "macarthur-hat";
 
@@ -77,10 +76,9 @@ shared, so no logic is duplicated. The full option set lives in
 
 ## Serial devices & discovery
 
-Marine gear (AIS, GPS, depth/wind sensors, the autopilot motor controller) plugs
-in as USB or soldered serial ports. pypilot-nix wires them declaratively through
-a single registry, and ships a discovery CLI to fill it — the reproducible
-equivalent of OpenPlotter's "Serial" app.
+Marine gear (AIS, GPS, depth/wind sensors, the autopilot motor controller)
+connects via USB or HAT. pypilot-nix wires it declaratively through a single
+registry, and ships a discovery CLI to fill it.
 
 ### The `serialDevices` registry
 
@@ -95,10 +93,9 @@ services.navigation.serialDevices.ttyOP_ais = {
 };
 ```
 
-- **`match`** pins the device, like OpenPlotter's *remember*: by USB
-  `vendorId` + `productId` (optionally `serial` to tell identical adapters
-  apart), or by `port` (a device-tree path such as `fe201000.serial:0.0`) for a
-  soldered UART with no USB ID.
+- **`match`** pins the device: by USB `vendorId` + `productId` (optionally
+  `serial` to tell identical adapters apart), or by `port` (a device-tree path
+  such as `fe201000.serial:0.0`) for a soldered UART with no USB ID.
 - **`role`** drives the wiring:
 
   | role       | udev symlink | service | Signal K provider     |
@@ -109,7 +106,7 @@ services.navigation.serialDevices.ttyOP_ais = {
 
 The **GPS** stays on its own option, `services.navigation.gps` (gpsd owns the
 receiver and disciplines the clock). NMEA2000/CAN is handled by the MacArthur
-HAT module, not this registry. The legacy `ais`/`motor` options still work — they
+HAT module, not this registry. The legacy `ais`/`motor` options still work: they
 are translated into registry entries internally.
 
 ### Discover devices with `nav-discover`
@@ -157,7 +154,7 @@ below).
 ### 1. Flash the SD card
 
 The image is zstd-compressed; decompress and write in one pipe (double-check the
-target — the wrong device wipes a disk):
+target: the wrong device wipes a disk):
 
 ```shell
 zstd -dc result-navpi/sd-image/*.img.zst \
@@ -168,7 +165,7 @@ zstd -dc result-navpi/sd-image/*.img.zst \
 
 The image ships with SSH and mDNS enabled, reachable at `<host>.local`:
 
-- user `skipper`, password `NixPypilot` (bootstrap default — change it)
+- user `skipper`, password `NixPypilot` (bootstrap default, change it)
 - for passwordless deploys, add your key to
   `users.users.skipper.openssh.authorizedKeys.keys` and rebuild
 
