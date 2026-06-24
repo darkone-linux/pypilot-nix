@@ -19,10 +19,26 @@ let
     mkOption
     mkEnableOption
     types
+    concatStringsSep
     ;
 
+  nav = config.services.navigation;
+
   # Signal K hub port OpenCPN connects to (declared by the signalk module).
-  signalkPort = config.services.navigation.signalk.port or 3000;
+  signalkPort = nav.signalk.port or 3000;
+
+  # Bench-proven 24-field ConnectionParams (OpenCPN 5.12). Seed both links the
+  # helm used to wire by hand, gated on the matching service so they vanish when
+  # it is off:
+  #   - Signal K hub (input): position/AIS/sensors over the Signal K protocol.
+  #   - pypilot (in/out): autopilot heading/commands over TCP NMEA0183 (:20220).
+  # pypilot -> Signal K stays automatic (signalk.nix adds the :20220 provider).
+  signalkConn = "1;3;localhost;${toString signalkPort};0;;4800;1;0;0;;0;;0;0;0;0;1;;1;;0;0;";
+  pypilotConn = "1;0;localhost;20220;0;;4800;1;1;0;;0;;0;0;0;0;1;;1;;0;0;";
+
+  defaultConnections =
+    lib.optional (nav.signalk.enable or false) signalkConn
+    ++ lib.optional (nav.pypilot.enable or false) pypilotConn;
 
   user = config.users.users.${cfg.user};
   home = user.home or "/home/${cfg.user}";
@@ -114,10 +130,10 @@ in
       # addr;port;DataProtocol;serialPort;baud;checksum;ioSelect;inListType;
       # inList;outListType;outList;prio;garmin;garminUp;furuno;enabled;comment;
       # autoSKDiscover;socketCAN;noDataReconnect;disableEcho;authToken.
-      # Default: a Signal K connection to the local hub (NETWORK=1, SIGNALK=3,
-      # DataProtocol SIGNALK=2, enabled). Older 6-field strings are rejected as
-      # invalid by OpenCPN.
-      default = "1;3;localhost;${toString signalkPort};2;;0;0;0;0;;0;;0;0;0;0;1;Signal K;0;;0;0;";
+      # Default: the Signal K + pypilot links wired above, joined with `|`. Older
+      # 6-field strings are rejected as invalid by OpenCPN.
+      default = concatStringsSep "|" defaultConnections;
+      defaultText = lib.literalExpression "<Signal K + pypilot connections, gated on each service>";
 
       description = ''
         Serialized opencpn.conf DataConnections entry (24 fields, OpenCPN 5.12

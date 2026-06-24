@@ -69,6 +69,12 @@ in
       description = "Launch OpenCPN on session start (off by default — open it manually).";
     };
 
+    opencpnFullscreen = mkOption {
+      type = types.bool;
+      default = true;
+      description = "Launch OpenCPN full-screen (-f); the helm wants the whole display. Toggle in-app with F11.";
+    };
+
     autostart = mkOption {
       type = types.listOf types.str;
       default = [ ];

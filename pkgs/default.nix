@@ -1,10 +1,11 @@
 # Custom marine-navigation packages, as a nixpkgs overlay.
 #
-# Additive only: every package is built from `final` (the fixpoint, so any
-# override composes), so the previous level `_prev` is unused. Imported directly
-# as the flake's overlays.default and applied by hosts/common.nix.
+# Mostly additive: packages are built from `final` (the fixpoint, so any
+# override composes); `prev` is used only to wrap an existing nixpkgs package
+# (xygrib). Imported directly as the flake's overlays.default and applied by
+# hosts/common.nix.
 
-final: _prev:
+final: prev:
 let
   py = final.python3Packages;
 
@@ -45,4 +46,23 @@ in
   nav-discover = final.callPackage ./nav-discover.nix { };
 
   opencpn-plugin-pypilot = final.callPackage ./opencpn-plugin-pypilot.nix { };
+
+  # XyGrib ships its data (coastline/relief maps + toolbar icons) under
+  # `$out/XyGrib/data`, but its data-dir search never finds it on NixOS: the
+  # binary's "look next to me" path resolves to `/nix` and nothing else matches,
+  # so the app runs with no background map AND blank/black toolbar icons.
+  # Fix without a rebuild: also expose the tree where XyGrib's XDG_DATA_DIRS
+  # search looks (`<datadir>/xygrib/data`). Once found, maps and icons both work.
+  xygrib =
+    let
+      base = prev.xygrib;
+    in
+    final.symlinkJoin {
+      name = "xygrib-mapdata-${base.version}";
+      paths = [ base ];
+      postBuild = ''
+        mkdir -p "$out/share/xygrib"
+        ln -s ${base}/XyGrib/data "$out/share/xygrib/data"
+      '';
+    };
 }

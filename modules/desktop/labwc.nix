@@ -35,7 +35,9 @@ let
 
   # Raw binaries, full store paths (waybar/labwc inherit no PATH).
   bin = {
-    opencpn = "${opencpn.finalPackage}/bin/opencpn";
+
+    # -f opens OpenCPN full-screen on the helm (F11 toggles in-app).
+    opencpn = "${opencpn.finalPackage}/bin/opencpn${lib.optionalString cfg.opencpnFullscreen " -f"}";
     xygrib = "${pkgs.xygrib}/bin/xygrib";
     terminal = "${pkgs.foot}/bin/foot";
     notes = "${pkgs.featherpad}/bin/featherpad";
@@ -343,10 +345,12 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
   '';
 
   # Large, readable terminal font — the default was unusably small on the helm.
+  # Open roomy too (~3x the default area on the 1080p helm display).
   environment.etc."xdg/foot/foot.ini".text = ''
     [main]
     font=JetBrainsMono Nerd Font Mono:size=18
     pad=8x8
+    initial-window-size-pixels=1500x960
 
     [colors]
     background=1f2330

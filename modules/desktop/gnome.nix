@@ -98,7 +98,7 @@ mkIf (cfg.enable && cfg.compositor == "gnome") {
       [Desktop Entry]
       Type=Application
       Name=OpenCPN
-      Exec=${opencpn.finalPackage}/bin/opencpn
+      Exec=${opencpn.finalPackage}/bin/opencpn${lib.optionalString cfg.opencpnFullscreen " -f"}
       X-GNOME-Autostart-enabled=true
     '';
   };
