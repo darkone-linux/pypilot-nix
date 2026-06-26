@@ -29,6 +29,7 @@ Raspberry Pi 4 (main) and Pi 5 (experimental) on `aarch64-linux`, with the
 - **Hardware HATs**: I2C, UART and SPI buses, kernel modules and device-tree overlays.
 - **Stable devices**: udev symlinks `/dev/gps0` and `/dev/pypilot_motor` from USB IDs.
 - **Device discovery**: `nav-discover` lists serial gear and emits paste-ready Nix; a `serialDevices` registry wires udev + Signal K.
+- **Encrypted secrets**: per-host wifi PSK via sops-nix, decrypted on-device; `just init <host>` mints the key and captures the password.
 - **Per-host SD images**: a named `pypilot-nix-<host>.img.zst` for each machine.
 - **Tested in CI**: package import checks plus a NixOS VM integration test.
 - **Headless**: SSH, mDNS `.local`, a `skipper` admin account, no display needed.
@@ -202,6 +203,44 @@ before assigning the device (or stop the consuming service first). On a host wit
 the labwc desktop, the same scan is available from the right-click menu under
 **Outils → Scan Matériel**.
 
+## Secrets & wifi (sops)
+
+Per-host secrets — today the wifi PSK of a headless node like `lab-rpi02` — are
+kept encrypted with [sops-nix](https://github.com/Mic92/sops-nix). The plaintext
+never enters git nor the Nix store: `secrets/<host>.yaml` is committed
+**encrypted** and decrypted on the device at activation into `/run/secrets`.
+
+`just init <host>` provisions a host in one idempotent step:
+
+```shell
+nix develop          # brings just + sops + age + yq into PATH
+just init lab-rpi02  # mint key, register it, capture the wifi password
+```
+
+It mints the host's age key in `secrets/keys/<host>.txt` (**never committed**),
+registers its public key in `.sops.yaml`, and — if the host enables wifi —
+prompts once for the password and writes the encrypted `secrets/<host>.yaml`.
+Re-running keeps an existing key/secret. Commit `secrets/<host>.yaml` and
+`.sops.yaml` afterwards; the (non-secret) SSID stays in
+`hosts/<host>/configuration.nix`.
+
+Before the first boot of a headless box, copy its **private** key onto the SD
+boot partition where the host reads it (`sops.age.keyFile`):
+
+```shell
+cp secrets/keys/lab-rpi02.txt /run/media/$USER/FIRMWARE/secrets/age.txt
+# path on the Pi: /boot/firmware/secrets/age.txt
+```
+
+Without that key the device cannot decrypt the PSK, never joins wifi, and — being
+headless — stays unreachable; the build warns when the secret is missing.
+
+> Anyone with the physical card can read that key and the on-card encrypted
+> secret: with no TPM, physical possession means access. sops protects the repo,
+> CI and binary cache — not a stolen card. Rotate the PSK if a card is lost.
+
+Full workflow and rotation: [`secrets/README.md`](secrets/README.md).
+
 ## Build the SD image
 
 SD images are `aarch64`, so build them on a native ARM machine, a remote
@@ -274,6 +313,7 @@ to see them all.
 | Recipe                    | What it does                                          |
 | ------------------------- | ----------------------------------------------------- |
 | `just clean`              | `fix` + `check` + `format` (run before committing)    |
+| `just init <host>`        | Mint a host's sops age key and capture its wifi PSK   |
 | `just sd-image <host>`    | Build the SD image for a host                         |
 | `just apply <host> [act]` | Deploy a host over SSH (`act` defaults to `switch`)   |
 | `just update`             | Update flake inputs, commit `flake.lock` if it changed |

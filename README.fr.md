@@ -29,6 +29,7 @@ NixOS. Cibles : Raspberry Pi 4 (principal) et Pi 5 (expérimental) sur
 - **HAT matériels** : bus I2C, UART et SPI, modules noyau et overlays device-tree.
 - **Périphériques stables** : symlinks udev `/dev/gps0` et `/dev/pypilot_motor` depuis les IDs USB.
 - **Découverte de périphériques** : `nav-discover` liste le matériel série et produit du Nix prêt à coller ; un registre `serialDevices` câble udev et Signal K.
+- **Secrets chiffrés** : PSK wifi par hôte via sops-nix, déchiffré sur la machine ; `just init <host>` génère la clé et saisit le mot de passe.
 - **Images SD par hôte** : une image nommée `pypilot-nix-<host>.img.zst` par machine.
 - **Testé en CI** : vérifications d'import des paquets, plus un test d'intégration en VM NixOS.
 - **Headless** : SSH, mDNS `.local`, un compte admin `skipper`, aucun écran requis.
@@ -218,6 +219,48 @@ sondes produisent des entrées `serialDevices`.
 > consomme. Sur un hôte avec le bureau labwc, le même scan est accessible depuis
 > le menu clic-droit, **Outils → Scan Matériel**.
 
+## Secrets et wifi (sops)
+
+Les secrets par hôte — aujourd'hui le PSK wifi d'un nœud headless comme
+`lab-rpi02` — sont chiffrés avec [sops-nix](https://github.com/Mic92/sops-nix).
+Le clair n'entre jamais dans git ni dans le store Nix : `secrets/<host>.yaml` est
+commité **chiffré** et déchiffré sur la machine à l'activation, dans
+`/run/secrets`.
+
+`just init <host>` provisionne un hôte en une étape idempotente :
+
+```shell
+nix develop          # met just + sops + age + yq dans le PATH
+just init lab-rpi02  # génère la clé, l'enregistre, saisit le mot de passe wifi
+```
+
+La recette génère la clé age de l'hôte dans `secrets/keys/<host>.txt`
+(**jamais commitée**), enregistre sa clé publique dans `.sops.yaml`, et — si
+l'hôte active le wifi — demande une fois le mot de passe puis écrit
+`secrets/<host>.yaml` chiffré. Relancer conserve une clé/un secret existants.
+Commiter ensuite `secrets/<host>.yaml` et `.sops.yaml` ; le SSID (non secret)
+reste dans `hosts/<host>/configuration.nix`.
+
+Avant le premier boot d'une machine headless, copier sa clé **privée** sur la
+partition de boot de la SD, là où l'hôte la lit (`sops.age.keyFile`) :
+
+```shell
+cp secrets/keys/lab-rpi02.txt /run/media/$USER/FIRMWARE/secrets/age.txt
+# chemin sur le Pi : /boot/firmware/secrets/age.txt
+```
+
+Sans cette clé, la machine ne peut pas déchiffrer le PSK, ne rejoint jamais le
+wifi et — étant headless — reste injoignable ; le build émet un warning quand le
+secret manque.
+
+> [!WARNING]
+> Quiconque a la carte physique peut lire cette clé et le secret chiffré qu'elle
+> contient : sans TPM, possession physique = accès. sops protège le dépôt, la CI
+> et le cache binaire — pas une carte volée. Changer le PSK si une carte est
+> perdue.
+
+Workflow complet et rotation : [`secrets/README.md`](secrets/README.md).
+
 ## Construire l'image SD
 
 Les images SD sont en `aarch64` : construire sur une machine ARM native, un
@@ -293,6 +336,7 @@ Le `Justfile` regroupe les commandes du quotidien. Lancer `just` (ou
 | Recette                   | Rôle                                                     |
 | ------------------------- | -------------------------------------------------------- |
 | `just clean`              | `fix` + `check` + `format` (avant chaque commit)         |
+| `just init <host>`        | Génère la clé sops d'un hôte et saisit son PSK wifi      |
 | `just sd-image <host>`    | Construit l'image SD d'un hôte                           |
 | `just apply <host> [act]` | Déploie un hôte par SSH (`act` vaut `switch` par défaut) |
 | `just update`             | Met à jour les inputs, commit `flake.lock` s'il change   |
