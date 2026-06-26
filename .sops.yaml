@@ -1,16 +1,10 @@
-# sops creation rules — which recipients can decrypt secrets/*.
+# sops creation rules — managed by `just init <host>`.
 #
-# Replace the placeholder below with your device age PUBLIC key
-# (`age-keygen -o age.txt` prints it, or `age-keygen -y age.txt`). Add more keys
-# (one per device/operator) to share a single encrypted file.
+# One age recipient per host: `secrets/<host>.yaml` is encrypted to that host's
+# key. The matching PRIVATE key lives uncommitted in secrets/keys/<host>.txt and
+# is copied to the device boot partition (/boot/firmware/secrets/age.txt).
 #
-# After editing this file, re-encrypt existing secrets: `sops updatekeys secrets/wifi.yaml`.
+# Public keys are not secret — committing them here is expected. After editing a
+# recipient by hand, re-encrypt: `sops updatekeys secrets/<host>.yaml`.
 
-keys:
-  - &lab-rpi02 age1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqsreplaceme
-
-creation_rules:
-  - path_regex: secrets/[^/]+\.yaml$
-    key_groups:
-      - age:
-          - *lab-rpi02
+creation_rules: []

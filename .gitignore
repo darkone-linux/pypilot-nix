@@ -27,8 +27,9 @@ __pycache__/
 !TODO*.md
 !CHANGELOG*.md
 
-# sops: commit only the ENCRYPTED secrets/*.yaml. Never the private age key or
-# any decrypted output.
+# sops: commit only the ENCRYPTED secrets/*.yaml. Never the private age keys
+# (one per host, minted by `just init`) or any decrypted output.
+/secrets/keys/
 age-key*.txt
 *.age
 keys.txt

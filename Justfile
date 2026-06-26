@@ -76,6 +76,62 @@ sd-image host:
 # Deploy
 #==============================================================================
 
+# Init a host's secrets: one uncommitted sops age key, and (if it uses wifi) its
+# encrypted PSK. Idempotent — re-run any time; existing key/secret are kept.
+[group('deploy')]
+init host:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    key_dir="secrets/keys"
+    key_file="$key_dir/{{ host }}.txt"
+    secret="secrets/{{ host }}.yaml"
+    rule="secrets/{{ host }}\\.yaml\$"
+
+    # Refuse an unknown host before touching any file.
+    if ! nix eval --accept-flake-config ".#nixosConfigurations.{{ host }}" --apply 'x: true' >/dev/null 2>&1; then
+      echo "[ {{ CYAN }}NPY{{ NORMAL }} ] INIT • unknown host '{{ host }}'." >&2
+      exit 1
+    fi
+
+    mkdir -p "$key_dir"
+
+    # 1. Per-host private age key — created once, never committed (.gitignore).
+    if [ -f "$key_file" ]; then
+      echo "[ {{ CYAN }}NPY{{ NORMAL }} ] INIT • key kept: $key_file"
+    else
+      age-keygen -o "$key_file" 2>/dev/null
+      chmod 600 "$key_file"
+      echo "[ {{ CYAN }}NPY{{ NORMAL }} ] INIT • key created: $key_file"
+    fi
+    pub="$(age-keygen -y "$key_file")"
+
+    # 2. Register/refresh the PUBLIC key in .sops.yaml for secrets/<host>.yaml.
+    if yq -e ".creation_rules[] | select(.path_regex == \"$rule\")" .sops.yaml >/dev/null 2>&1; then
+      yq -i "(.creation_rules[] | select(.path_regex == \"$rule\")).age = \"$pub\"" .sops.yaml
+    else
+      yq -i ".creation_rules += [{\"path_regex\": \"$rule\", \"age\": \"$pub\"}]" .sops.yaml
+    fi
+    echo "[ {{ CYAN }}NPY{{ NORMAL }} ] INIT • recipient set in .sops.yaml"
+
+    # 3. Wifi PSK — only for wifi hosts, only if not captured yet.
+    wifi="$(nix eval --accept-flake-config ".#nixosConfigurations.{{ host }}.config.networking.wireless.enable" 2>/dev/null || echo false)"
+    if [ "$wifi" != "true" ]; then
+      echo "[ {{ CYAN }}NPY{{ NORMAL }} ] INIT • no wifi on {{ host }} — done."
+      exit 0
+    fi
+    if [ -f "$secret" ]; then
+      echo "[ {{ CYAN }}NPY{{ NORMAL }} ] INIT • wifi secret kept: $secret"
+      exit 0
+    fi
+
+    read -rsp "Wifi password for {{ host }}: " psk; echo
+    tmp="$(mktemp)"; trap 'rm -f "$tmp"' EXIT
+    printf 'wifi_psk: %s\n' "$psk" > "$tmp"
+    sops --encrypt --filename-override "$secret" "$tmp" > "$secret"
+    echo "[ {{ CYAN }}NPY{{ NORMAL }} ] INIT • encrypted $secret"
+    echo "[ {{ CYAN }}NPY{{ NORMAL }} ] INIT • before first boot, copy $key_file → SD /boot/firmware/secrets/age.txt"
+
 # Deploy a host over SSH (action: switch, boot, test, dry-activate...)
 [group('deploy')]
 apply host action="switch":

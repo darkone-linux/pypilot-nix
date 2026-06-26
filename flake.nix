@@ -148,9 +148,11 @@
             pkgs.nil
             pkgs.nix-unit
 
-            # Edit/encrypt secrets/*.yaml and mint the device age key.
+            # Edit/encrypt secrets/*.yaml, mint the device age key, and let
+            # `just init` patch .sops.yaml recipients.
             pkgs.sops
             pkgs.age
+            pkgs.yq-go
           ];
         };
       });
