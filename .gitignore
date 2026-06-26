@@ -15,6 +15,10 @@
 tmp/
 *.iso
 *.lock
+
+# flake.lock MUST be tracked: pins inputs (kernel/firmware) for reproducible
+# builds. Untracked, Nix re-resolves inputs each eval and recompiles the kernel.
+!flake.lock
 *.log
 __pycache__/
 *.pyc
