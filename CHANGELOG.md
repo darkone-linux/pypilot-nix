@@ -7,6 +7,16 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-26
+
+### Changed
+
+- OpenCPN's pypilot plugin is shipped and enabled automatically when both
+  `opencpn` and `pypilot` are on; no need to set `opencpn.plugins` by hand.
+- labwc menus, panel quick-launch and keyboard shortcuts now follow the
+  enabled services: OpenCPN, SignalK and the PyPilot submenu drop out when
+  their service is off.
+
 ## [0.1.0] - 2026-06-24
 
 First public release. Declarative NixOS marine navigation distribution for
@@ -28,5 +38,6 @@ Raspberry Pi 4/5 (`aarch64-linux`), a reproducible OpenPlotter equivalent.
 - `nav-discover` unified serial registry and CLI for GPS/AIS pinning.
 - SD image builds per host; level-1 package and level-2A VM CI.
 
-[Unreleased]: https://github.com/darkone-linux/pypilot-nix/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/darkone-linux/pypilot-nix/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/darkone-linux/pypilot-nix/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/darkone-linux/pypilot-nix/releases/tag/v0.1.0
