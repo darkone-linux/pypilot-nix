@@ -25,6 +25,9 @@ let
     types
     ;
 
+  # Project library; serial-registry dedup lives there to stay unit-testable.
+  navLib = import ../lib { inherit lib; };
+
   stateDir = "/var/lib/signalk";
 
   settingsFormat = pkgs.formats.json { };
@@ -42,24 +45,7 @@ let
 
   # One provider per /dev name: the registry may list several udev matches for
   # the same symlink (e.g. a multi-id AIS autodetect) — keep the first.
-  uniqueSerial =
-    (lib.foldl'
-      (
-        acc: e:
-        if lib.elem e.name acc.seen then
-          acc
-        else
-          {
-            seen = acc.seen ++ [ e.name ];
-            out = acc.out ++ [ e ];
-          }
-      )
-      {
-        seen = [ ];
-        out = [ ];
-      }
-      serialDevices
-    ).out;
+  uniqueSerial = navLib.serial.uniqueByName serialDevices;
 
   # One NMEA0183 input provider (serial or udp), mirroring OpenPlotter's layout.
   nmea0183Provider = id: subOptions: {

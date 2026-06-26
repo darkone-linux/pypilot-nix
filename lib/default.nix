@@ -6,7 +6,8 @@
 { lib }:
 let
   hardware = import ./hardware.nix { inherit lib; };
+  serial = import ./serial.nix { inherit lib; };
 in
 {
-  inherit hardware;
+  inherit hardware serial;
 }

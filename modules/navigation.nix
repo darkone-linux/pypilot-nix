@@ -21,6 +21,10 @@
 let
   cfg = config.services.navigation;
   aiscfg = cfg.ais;
+
+  # Project library; serial-registry algorithms live there to stay unit-testable.
+  navLib = import ../lib { inherit lib; };
+
   inherit (lib)
     mkIf
     mkOption
@@ -525,24 +529,18 @@ in
 
     assertions = [
       {
-        assertion = (cfg.gps.vendorId == null) == (cfg.gps.productId == null);
+        assertion = navLib.serial.pairComplete cfg.gps.vendorId cfg.gps.productId;
         message = "services.navigation.gps: set both vendorId and productId, or neither.";
       }
       {
-        assertion = (cfg.motor.vendorId == null) == (cfg.motor.productId == null);
+        assertion = navLib.serial.pairComplete cfg.motor.vendorId cfg.motor.productId;
         message = "services.navigation.motor: set both vendorId and productId, or neither.";
       }
     ]
     ++ lib.mapAttrsToList (n: d: {
-      assertion =
-        let
-          m = d.match;
-          usb = m.vendorId != null && m.productId != null;
-          partialUsb = (m.vendorId == null) != (m.productId == null);
-        in
 
-        # Exactly one match mode, with USB ids complete when used.
-        !partialUsb && (usb != (m.port != null));
+      # Exactly one match mode, with USB ids complete when used.
+      assertion = navLib.serial.serialMatchValid d.match;
       message = "services.navigation.serialDevices.${n}.match: set exactly one of vendorId+productId (optionally serial) or port.";
     }) cfg.serialDevices;
 

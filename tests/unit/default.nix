@@ -7,4 +7,5 @@ let
 in
 {
   lib_hardware = import ./lib/hardware_test.nix { inherit navLib; };
+  lib_serial = import ./lib/serial_test.nix { inherit navLib; };
 }
