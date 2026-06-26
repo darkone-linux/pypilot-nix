@@ -22,6 +22,11 @@
     # (DTBs ship __symbols__), so dtparam=spi/i2c and dtoverlay actually apply —
     # what the generic SD image could not do.
     nixos-raspberrypi.url = "github:nvmd/nixos-raspberrypi";
+
+    # Encrypted secrets (e.g. the lab-rpi02 wifi PSK): committed encrypted,
+    # decrypted at activation on the device. Follows our nixpkgs.
+    sops-nix.url = "github:Mic92/sops-nix";
+    sops-nix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs =
@@ -29,6 +34,7 @@
       self,
       nixpkgs,
       nixos-raspberrypi,
+      sops-nix,
       ...
     }:
     let
@@ -141,6 +147,10 @@
             pkgs.shfmt
             pkgs.nil
             pkgs.nix-unit
+
+            # Edit/encrypt secrets/*.yaml and mint the device age key.
+            pkgs.sops
+            pkgs.age
           ];
         };
       });
@@ -204,9 +214,13 @@
 
         # Pi Zero 2 W headless node: wifi-connected, Camera Module 3 Wide. No
         # display board module (camera/sensor box, not a chartplotter helm).
+        # sops-nix decrypts its wifi PSK at activation (see the host file).
         lab-rpi02 = mkRpiHost {
           board = [ raspberry-pi-02.base ];
-          modules = [ ./hosts/lab-rpi02/configuration.nix ];
+          modules = [
+            sops-nix.nixosModules.sops
+            ./hosts/lab-rpi02/configuration.nix
+          ];
         };
 
         lab-vm = mkVmHost {
