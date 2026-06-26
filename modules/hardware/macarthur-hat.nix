@@ -62,9 +62,31 @@ in
     };
   };
 
-  config = mkIf (cfg.hardware == "macarthur-hat") (mkMerge [
+  config = mkIf cfg.hardware.hats.enableMacArthur (mkMerge [
 
     {
+
+      # Pins driven by the HAT: I2C-1 (2/3), SPI0 (7-11), UART0 (14/15), plus the
+      # MCP2515 (25) and SC16IS752 (24) interrupts and the gpio-shutdown (26).
+      services.navigation.hardware.gpioClaims = [
+        {
+          owner = "macarthur-hat";
+          pins = [
+            2
+            3
+            7
+            8
+            9
+            10
+            11
+            14
+            15
+            24
+            25
+            26
+          ];
+        }
+      ];
 
       # IMU, RTC and the SC16IS752 UART expander all share I2C-1.
       hardware.i2c.enable = true;

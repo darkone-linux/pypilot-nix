@@ -3,7 +3,7 @@
 # A plain headless host: build/run it as a VM (`nixos-rebuild build-vm` or the
 # system.build.vm output) and then update it over SSH like any remote machine,
 # unifying the workflow with the hardware bench. The navigation stack runs
-# without sensors (hardware = null), which is exactly what level 2 validates.
+# without sensors (no HAT enabled), which is exactly what level 2 validates.
 
 { modulesPath, ... }:
 

@@ -7,9 +7,9 @@
 
   networking.hostName = "navpi";
 
-  # HAT fitted on the Pi — pypilot-hat by default; uncomment to switch.
-  services.navigation.hardware = "pypilot-hat";
-  # services.navigation.hardware = "macarthur-hat";
+  # HATs fitted on the Pi — Pypilot by default; toggle others as needed.
+  services.navigation.hardware.hats.enablePypilot = true;
+  # services.navigation.hardware.hats.enableMacArthur = true;
 
   # Expose the Signal K hub to the boat network (chartplotters, tablets).
   services.navigation.signalk.openFirewall = true;

@@ -546,9 +546,14 @@ in
       message = "services.navigation.serialDevices.${n}.match: set exactly one of vendorId+productId (optionally serial) or port.";
     }) cfg.serialDevices;
 
-    warnings = optional (cfg.pypilot.enable && cfg.hardware == null) (
-      "services.navigation: pypilot is enabled without a HAT (hardware = null); "
-      + "the IMU and control head will be unavailable."
-    );
+    warnings =
+      let
+        hats = cfg.hardware.hats;
+        anyHat = hats.enablePypilot || hats.enableMacArthur || hats.enableSim7600x || hats.enableXpt2046;
+      in
+      optional (cfg.pypilot.enable && !anyHat) (
+        "services.navigation: pypilot is enabled without a HAT; "
+        + "the IMU and control head will be unavailable."
+      );
   };
 }

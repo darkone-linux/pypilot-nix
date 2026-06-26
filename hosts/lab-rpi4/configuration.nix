@@ -6,7 +6,7 @@
   imports = [ ../rpi.nix ];
 
   networking.hostName = "lab-rpi4";
-  services.navigation.hardware = "pypilot-hat";
+  services.navigation.hardware.hats.enablePypilot = true;
 
   # Bench USB GPS on a Prolific PL2303 (generic serial chip, no dedicated GNSS
   # USB ID): pin it so gpsd adopts it on plug-in via /dev/gps0. The gps0 symlink

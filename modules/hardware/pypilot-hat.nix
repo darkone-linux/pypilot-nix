@@ -32,8 +32,27 @@ let
   hasConfigTxt = options.hardware ? raspberry-pi;
 in
 {
-  config = mkIf (cfg.hardware == "pypilot-hat") (mkMerge [
+  config = mkIf cfg.hardware.hats.enablePypilot (mkMerge [
     {
+
+      # Pins driven by the HAT: I2C-1 (2/3), SPI0 (7-11), UART0 (14/15). Keypad,
+      # 433 MHz RF and buzzer GPIOs add to this once the bench pinout is fixed.
+      services.navigation.hardware.gpioClaims = [
+        {
+          owner = "pypilot-hat";
+          pins = [
+            2
+            3
+            7
+            8
+            9
+            10
+            11
+            14
+            15
+          ];
+        }
+      ];
 
       # ICM20948 sits on I2C-1; RTIMULib reaches it through /dev/i2c-1, so only
       # bus access (i2c-dev + i2c group) is needed, no kernel IMU driver.

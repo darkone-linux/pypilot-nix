@@ -88,8 +88,8 @@ in
 
     controlHead.enable = mkOption {
       type = types.bool;
-      default = config.services.navigation.hardware == "pypilot-hat";
-      defaultText = lib.literalExpression ''config.services.navigation.hardware == "pypilot-hat"'';
+      default = config.services.navigation.hardware.hats.enablePypilot;
+      defaultText = lib.literalExpression "config.services.navigation.hardware.hats.enablePypilot";
       description = ''
         Run pypilot_hat, the control-head process driving the Pypilot HAT's LCD,
         keypad, IR and 433 MHz RF receiver (software-decoded over GPIO). Required

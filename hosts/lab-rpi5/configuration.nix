@@ -11,7 +11,7 @@
   imports = [ ../rpi.nix ];
 
   networking.hostName = "lab-rpi5";
-  services.navigation.hardware = "macarthur-hat";
+  services.navigation.hardware.hats.enableMacArthur = true;
 
   # Bench display: chartplotter desktop (labwc, always-on).
   services.navigation.opencpn.enable = true;

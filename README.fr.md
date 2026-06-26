@@ -47,9 +47,9 @@ nom de la machine et le HAT :
 
   networking.hostName = "navpi";
 
-  # HAT installé sur le Pi, au choix :
-  services.navigation.hardware = "pypilot-hat";
-  # services.navigation.hardware = "macarthur-hat";
+  # HATs installés sur le Pi, activez n'importe quelle combinaison :
+  services.navigation.hardware.hats.enablePypilot = true;
+  # services.navigation.hardware.hats.enableMacArthur = true;
 
   # Accéder à Signal K depuis le réseau du bateau :
   services.navigation.signalk.openFirewall = true;
