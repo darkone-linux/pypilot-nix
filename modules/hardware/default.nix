@@ -58,7 +58,7 @@ in
       enableCamera3Wide = mkOption {
         type = types.bool;
         default = false;
-        description = "Fit the Raspberry Pi Camera Module 3 Wide (not implemented yet).";
+        description = "Fit the Raspberry Pi Camera Module 3 Wide (IMX708 on CSI).";
       };
     };
 

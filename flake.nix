@@ -72,7 +72,11 @@
             ++ modules;
         };
 
-      inherit (nixos-raspberrypi.nixosModules) raspberry-pi-4 raspberry-pi-5;
+      inherit (nixos-raspberrypi.nixosModules)
+        raspberry-pi-02
+        raspberry-pi-4
+        raspberry-pi-5
+        ;
 
       # Plain aarch64 NixOS host (the lab VM boots no Pi firmware).
       mkVmHost =
@@ -89,6 +93,7 @@
         "navpi"
         "lab-rpi4"
         "lab-rpi5"
+        "lab-rpi02"
       ];
       sdImages = builtins.listToAttrs (
         map (name: {
@@ -195,6 +200,13 @@
             raspberry-pi-5.display-vc4
           ];
           modules = [ ./hosts/lab-rpi5/configuration.nix ];
+        };
+
+        # Pi Zero 2 W headless node: wifi-connected, Camera Module 3 Wide. No
+        # display board module (camera/sensor box, not a chartplotter helm).
+        lab-rpi02 = mkRpiHost {
+          board = [ raspberry-pi-02.base ];
+          modules = [ ./hosts/lab-rpi02/configuration.nix ];
         };
 
         lab-vm = mkVmHost {
