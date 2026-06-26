@@ -14,6 +14,13 @@
   # Camera Module 3 Wide on the CSI connector (no header GPIO, see the module).
   services.navigation.hardware.modules.enableCamera3Wide = true;
 
+  # Stream it over the wifi: RTSP (rtsp://lab-rpi02.local:8554/cam) and WebRTC
+  # (http://lab-rpi02.local:8889/cam), reachable from any boat-network machine.
+  services.navigation.hardware.modules.camera3Wide.streaming = {
+    enable = true;
+    openFirewall = true;
+  };
+
   # Onboard Cypress wifi: brcmfmac firmware ships with linux-firmware, not the
   # vendor base, so pull it in explicitly.
   hardware.enableRedistributableFirmware = true;
