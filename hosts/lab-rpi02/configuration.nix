@@ -17,7 +17,7 @@ let
 
   # The SSID is broadcast in clear by the access point, so it is not a secret:
   # keep it here and edit it per site. Only the PSK lives in sops.
-  wifiSsid = "BoatWifi";
+  wifiSsid = "ARTHUR";
 
   # Per-host encrypted secret; sops wiring activates only once it is committed.
   # Until then (fresh clone, CI) the host still evaluates — so it never breaks

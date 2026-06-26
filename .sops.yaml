@@ -7,4 +7,6 @@
 # Public keys are not secret — committing them here is expected. After editing a
 # recipient by hand, re-encrypt: `sops updatekeys secrets/<host>.yaml`.
 
-creation_rules: []
+creation_rules:
+  - path_regex: secrets/lab-rpi02\.yaml$
+    age: age1afwu7lz4zu9l94qyphx53x96523984fpvlvlx3e4sdu3g7t744equphdx9
