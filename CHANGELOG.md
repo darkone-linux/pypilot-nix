@@ -9,6 +9,8 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [0.1.1] - 2026-06-26
 
+## [0.1.1] - 2026-06-26
+
 ### Changed
 
 - OpenCPN's pypilot plugin is shipped and enabled automatically when both
@@ -39,5 +41,6 @@ Raspberry Pi 4/5 (`aarch64-linux`), a reproducible OpenPlotter equivalent.
 - SD image builds per host; level-1 package and level-2A VM CI.
 
 [Unreleased]: https://github.com/darkone-linux/pypilot-nix/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/darkone-linux/pypilot-nix/compare/v0.1.0...v0.1.1
 [0.1.1]: https://github.com/darkone-linux/pypilot-nix/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/darkone-linux/pypilot-nix/releases/tag/v0.1.0
