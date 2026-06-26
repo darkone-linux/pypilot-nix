@@ -62,19 +62,95 @@ nom de la machine et le HAT :
 
 Hôtes fournis dans le flake :
 
-| Hôte       | Cible            | HAT           | Rôle           |
-| ---------- | ---------------- | ------------- | -------------- |
-| `navpi`    | Raspberry Pi 4   | Pypilot HAT   | Production     |
-| `lab-rpi4` | Raspberry Pi 4   | Pypilot HAT   | Labo / banc    |
-| `lab-rpi5` | Raspberry Pi 5 ¹ | MacArthur HAT | Labo / banc    |
-| `lab-vm`   | VM aarch64       | aucun         | Labo émulé     |
+| Hôte        | Cible                 | HAT / module  | Rôle           |
+| ----------- | --------------------- | ------------- | -------------- |
+| `navpi`     | Raspberry Pi 4        | Pypilot HAT   | Production     |
+| `lab-rpi4`  | Raspberry Pi 4        | Pypilot HAT   | Labo / banc    |
+| `lab-rpi5`  | Raspberry Pi 5 ¹      | MacArthur HAT | Labo / banc    |
+| `lab-rpi02` | Raspberry Pi Zero 2 W | Camera 3 Wide | Labo / caméra ² |
+| `lab-vm`    | VM aarch64            | aucun         | Labo émulé     |
 
 ¹ Le support de boot du Pi 5 est expérimental (image aarch64 générique).
+² Nœud Wi-Fi headless : diffuse sa caméra CSI en RTSP/WebRTC.
 
 Pour ajouter un bateau ou un banc, déclarer une entrée `nixosConfigurations` de
 plus dans `flake.nix`, puis déposer un `hosts/<host>/configuration.nix` ; les
 modules sont partagés, aucune logique n'est dupliquée. L'ensemble des options
 vit dans `modules/navigation.nix`.
+
+## Matériel supporté
+
+Les HAT se posent sur le connecteur 40 broches ; les modules d'extension
+utilisent leurs propres connecteurs. Activer n'importe quelle combinaison via
+`services.navigation.hardware` — chacun est un booléen, et les conflits de GPIO
+entre deux HAT sont détectés par des assertions au build. Le matériel série USB
+(GPS, AIS, sondes) n'est **pas** un HAT : le découvrir et le câbler avec
+[`nav-discover`](#périphériques-série-et-découverte) (voir plus bas) avant de
+toucher à ces interrupteurs.
+
+| Matériel                | Type   | Option d'activation (`services.navigation.`…) | État         |
+| ----------------------- | ------ | --------------------------------------------- | ------------ |
+| Pypilot HAT             | HAT    | `hardware.hats.enablePypilot`                 | ✅ supporté  |
+| MacArthur HAT           | HAT    | `hardware.hats.enableMacArthur`               | ✅ supporté  |
+| Camera Module 3 Wide    | module | `hardware.modules.enableCamera3Wide`          | ✅ supporté  |
+| HAT 4G/LTE SIM7600X     | HAT    | `hardware.hats.enableSim7600x`                | 🚧 prévu     |
+| HAT tactile XPT2046     | HAT    | `hardware.hats.enableXpt2046`                 | 🚧 prévu     |
+
+### Pypilot HAT
+
+Cerveau du pilote automatique : IMU ICM20948 (I2C), LCD + clavier (SPI0) et le
+contrôleur moteur sur UART0 (`/dev/ttyOP_pilot`).
+
+```nix
+services.navigation.hardware.hats.enablePypilot = true;
+```
+
+S'utilise via l'interface web de pypilot (`pypilot_web`, port 8000) pour la
+calibration IMU et la barre, ou via le plugin pypilot d'OpenCPN quand le bureau
+est actif. Un contrôleur moteur USB s'épingle par une entrée `serialDevices` avec
+`role = "pilot"`.
+
+### MacArthur HAT
+
+E/S maritimes multiplexées : CAN MCP2515 pour le **NMEA2000** (SPI0), un récepteur
+**AIS** embarqué sur UART0 (`ttyAMA0`), une RTC DS3231 et un double UART SC16IS752
+(I2C).
+
+```nix
+services.navigation.hardware.hats.enableMacArthur = true;
+```
+
+Le NMEA2000 et l'AIS alimentent Signal K automatiquement ; la RTC garde l'heure
+hors-ligne. Le brochage est validé sur matériel réel (banc niveau 3).
+
+### Camera Module 3 Wide
+
+Caméra grand-angle IMX708 sur le connecteur CSI — aucun GPIO du header, donc
+compatible avec tous les HAT ci-dessus.
+
+```nix
+services.navigation.hardware.modules.enableCamera3Wide = true;
+
+# Optionnel : streaming réseau (RTSP + WebRTC) via MediaMTX
+services.navigation.hardware.modules.camera3Wide.streaming = {
+  enable = true;
+  openFirewall = true; # ouvre 8554/tcp (RTSP), 8889/tcp + 8189/udp (WebRTC)
+  # width = 1280; height = 720; framerate = 30;
+};
+```
+
+`cam --list` sur l'hôte confirme le capteur. Streaming activé, se connecter depuis
+n'importe quelle machine : WebRTC dans un navigateur sur `http://<host>.local:8889/cam`,
+ou RTSP sur `rtsp://<host>.local:8554/cam` (VLC, mpv). L'encodage H.264 matériel
+laisse le CPU au repos, et la caméra ne s'allume que pendant qu'un client est
+connecté.
+
+### Prévus : SIM7600X et XPT2046
+
+Le HAT 4G/LTE SIM7600X et l'écran tactile SPI XPT2046 sont déclarés (leurs options
+existent et réservent les GPIO qu'ils piloteraient, donc les conflits sont déjà
+pris en compte) mais pas encore câblés — les activer aujourd'hui ne fait rien de
+plus que cette réservation.
 
 ## Périphériques série et découverte
 

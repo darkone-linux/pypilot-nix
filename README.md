@@ -62,19 +62,90 @@ the HAT:
 
 Hosts shipped in the flake:
 
-| Host       | Target           | HAT           | Role         |
-| ---------- | ---------------- | ------------- | ------------ |
-| `navpi`    | Raspberry Pi 4   | Pypilot HAT   | Production   |
-| `lab-rpi4` | Raspberry Pi 4   | Pypilot HAT   | Lab / bench  |
-| `lab-rpi5` | Raspberry Pi 5 ¹ | MacArthur HAT | Lab / bench  |
-| `lab-vm`   | aarch64 VM       | none          | Emulated lab |
+| Host        | Target                | HAT / module  | Role           |
+| ----------- | --------------------- | ------------- | -------------- |
+| `navpi`     | Raspberry Pi 4        | Pypilot HAT   | Production     |
+| `lab-rpi4`  | Raspberry Pi 4        | Pypilot HAT   | Lab / bench    |
+| `lab-rpi5`  | Raspberry Pi 5 ¹      | MacArthur HAT | Lab / bench    |
+| `lab-rpi02` | Raspberry Pi Zero 2 W | Camera 3 Wide | Lab / camera ² |
+| `lab-vm`    | aarch64 VM            | none          | Emulated lab   |
 
 ¹ Pi 5 boot support is experimental (generic aarch64 image).
+² Headless Wi-Fi node: streams its CSI camera over RTSP/WebRTC.
 
 Add a boat or bench by declaring one more `nixosConfigurations` entry in
 `flake.nix` and dropping a `hosts/<host>/configuration.nix`; the modules are
 shared, so no logic is duplicated. The full option set lives in
 `modules/navigation.nix`.
+
+## Supported hardware
+
+HATs sit on the 40-pin header; add-on modules use their own connectors. Enable
+any combination through `services.navigation.hardware` — each is a boolean, and
+GPIO conflicts between two HATs are caught by assertions at build time. USB serial
+gear (GPS, AIS, sensors) is **not** a HAT: discover and wire it with
+[`nav-discover`](#serial-devices--discovery) (see below) before reaching for these
+toggles.
+
+| Hardware                | Type   | Enable option (`services.navigation.`…)   | Status       |
+| ----------------------- | ------ | ----------------------------------------- | ------------ |
+| Pypilot HAT             | HAT    | `hardware.hats.enablePypilot`             | ✅ supported |
+| MacArthur HAT           | HAT    | `hardware.hats.enableMacArthur`           | ✅ supported |
+| Camera Module 3 Wide    | module | `hardware.modules.enableCamera3Wide`      | ✅ supported |
+| SIM7600X 4G/LTE HAT     | HAT    | `hardware.hats.enableSim7600x`            | 🚧 planned   |
+| XPT2046 touchscreen HAT | HAT    | `hardware.hats.enableXpt2046`             | 🚧 planned   |
+
+### Pypilot HAT
+
+Autopilot brain: ICM20948 IMU (I2C), LCD + keypad (SPI0) and the motor controller
+on UART0 (`/dev/ttyOP_pilot`).
+
+```nix
+services.navigation.hardware.hats.enablePypilot = true;
+```
+
+Use it through pypilot's web UI (`pypilot_web`, port 8000) for IMU calibration and
+steering, or the pypilot plugin in OpenCPN when the desktop is on. A USB motor
+controller is pinned with a `serialDevices` entry using `role = "pilot"`.
+
+### MacArthur HAT
+
+Multiplexed marine I/O: MCP2515 CAN for **NMEA2000** (SPI0), an on-board **AIS**
+receiver on UART0 (`ttyAMA0`), a DS3231 RTC and an SC16IS752 dual UART (I2C).
+
+```nix
+services.navigation.hardware.hats.enableMacArthur = true;
+```
+
+NMEA2000 and AIS flow into Signal K automatically; the RTC keeps time offline.
+Pinout is validated on real hardware (bench level 3).
+
+### Camera Module 3 Wide
+
+IMX708 wide camera on the CSI connector — no header GPIO, so compatible with any
+HAT above.
+
+```nix
+services.navigation.hardware.modules.enableCamera3Wide = true;
+
+# Optional: stream over the network (RTSP + WebRTC) via MediaMTX
+services.navigation.hardware.modules.camera3Wide.streaming = {
+  enable = true;
+  openFirewall = true; # opens 8554/tcp (RTSP), 8889/tcp + 8189/udp (WebRTC)
+  # width = 1280; height = 720; framerate = 30;
+};
+```
+
+`cam --list` on the host confirms the sensor. With streaming on, connect from any
+machine: WebRTC in a browser at `http://<host>.local:8889/cam`, or RTSP at
+`rtsp://<host>.local:8554/cam` (VLC, mpv). Hardware H.264 encoding keeps the CPU
+idle, and the camera only powers up while a client is connected.
+
+### Planned: SIM7600X and XPT2046
+
+The SIM7600X 4G/LTE HAT and the XPT2046 SPI touchscreen are declared (their options
+exist and reserve the GPIOs they would drive, so conflicts are already accounted
+for) but not wired yet — enabling them today does nothing beyond that reservation.
 
 ## Serial devices & discovery
 
