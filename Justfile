@@ -82,8 +82,11 @@ apply host action="switch":
     #!/usr/bin/env bash
     set -euo pipefail
     echo "[ {{ CYAN }}NPY{{ NORMAL }} ] APPLY • {{ action }} {{ host }}..."
+    # --accept-flake-config: honor the flake's nixConfig (Pi kernel cache)
+    # non-interactively, else nix declines it and recompiles the kernel.
     nixos-rebuild {{ action }} --flake ".#{{ host }}" \
-      --target-host "skipper@{{ host }}" --sudo
+      --target-host "skipper@{{ host }}" --sudo \
+      --accept-flake-config
 
 # Update flake inputs, commit flake.lock if it changed
 [group('deploy')]

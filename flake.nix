@@ -1,6 +1,17 @@
 {
   description = "pypilot-nix — declarative NixOS marine navigation distribution";
 
+  # Prebuilt Pi kernel/firmware: offered to the build machine (deploys build on
+  # the x86_64 workstation, not the Pi), else the vendor kernel recompiles under
+  # emulation. Trusted users get it automatically; others need
+  # --accept-flake-config. Mirrors nixos-raspberrypi's own nixConfig.
+  nixConfig = {
+    extra-substituters = [ "https://nixos-raspberrypi.cachix.org" ];
+    extra-trusted-public-keys = [
+      "nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI="
+    ];
+  };
+
   inputs = {
     # Track nixpkgs-unstable for the marine packages, dev shells and lab VM.
     # Decoupled from nixos-raspberrypi's pin: the Pi hosts still build their

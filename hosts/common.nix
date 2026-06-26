@@ -95,6 +95,13 @@ in
     # --target-host` (deploys come from a trusted workstation). root is trusted
     # by default; add wheel.
     trusted-users = [ "@wheel" ];
+
+    # Prebuilt Pi kernel/firmware from nixos-raspberrypi's cache; without it the
+    # vendor kernel is recompiled locally. Key from the input's own nixConfig.
+    extra-substituters = [ "https://nixos-raspberrypi.cachix.org" ];
+    extra-trusted-public-keys = [
+      "nixos-raspberrypi.cachix.org-1:4iMO9LXa8BqhU+Rpg6LQKiGa2lsNh/j2oiYLNOQ5sPI="
+    ];
   };
 
   # GPS disciplines the clock at sea; default the box itself to UTC.
