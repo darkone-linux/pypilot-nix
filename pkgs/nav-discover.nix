@@ -1,8 +1,9 @@
-# nav-discover — serial-device discovery CLI for the navigation stack.
+# nav-discover — serial-device and HAT discovery CLI for the navigation stack.
 #
-# Read-only helper: enumerates tty devices (pyudev), optionally sniffs NMEA0183
-# to guess the role, and prints a ready-to-paste `services.navigation.*` block.
-# It never edits configuration — the registry stays declarative.
+# Read-only helper: enumerates tty devices (pyudev), probes i2c-1/USB to spot the
+# fitted HATs (smbus2), optionally sniffs NMEA0183 to guess the role, and prints
+# a ready-to-paste `services.navigation.*` block. It never edits configuration —
+# the registry stays declarative.
 
 {
   stdenvNoCC,
@@ -10,10 +11,11 @@
 }:
 
 let
-  # pyudev for enumeration, pyserial for the optional --sniff probe.
+  # pyudev for enumeration, pyserial for --sniff, smbus2 for the HAT I2C probe.
   pyEnv = python3.withPackages (ps: [
     ps.pyudev
     ps.pyserial
+    ps.smbus2
   ]);
 in
 stdenvNoCC.mkDerivation {
@@ -34,7 +36,7 @@ stdenvNoCC.mkDerivation {
   '';
 
   meta = {
-    description = "Discover serial navigation devices and emit Nix snippets";
+    description = "Discover serial navigation devices and HATs, emit Nix snippets";
     mainProgram = "nav-discover";
   };
 }
