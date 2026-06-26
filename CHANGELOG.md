@@ -9,7 +9,14 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [0.1.1] - 2026-06-26
 
-## [0.1.1] - 2026-06-26
+### Added
+
+- Multi-HAT selection (`hardware.hats.*`) with GPIO conflict assertions that
+  refuse incompatible HAT combinations at evaluation time.
+- nix-unit test suites for the pure `lib/` algorithms (serial registry and
+  GPIO-conflict detection), runnable via `just test` and `nix flake check`.
+- labwc screenshot keybinds: Print captures the screen, Shift+Print a region
+  (grim/slurp into `~/Captures`).
 
 ### Changed
 
@@ -18,6 +25,14 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - labwc menus, panel quick-launch and keyboard shortcuts now follow the
   enabled services: OpenCPN, SignalK and the PyPilot submenu drop out when
   their service is off.
+- Deploys pull from the nixos-raspberrypi Cachix cache to avoid rebuilding the
+  kernel.
+- `navLib` is injected via `specialArgs` instead of importing `../lib`.
+- Bumped canboat to 6.2.2 and ais-catcher to 0.70.
+
+### Fixed
+
+- `flake.lock` is tracked to pin inputs, avoiding spurious kernel rebuilds.
 
 ## [0.1.0] - 2026-06-24
 
@@ -41,6 +56,5 @@ Raspberry Pi 4/5 (`aarch64-linux`), a reproducible OpenPlotter equivalent.
 - SD image builds per host; level-1 package and level-2A VM CI.
 
 [Unreleased]: https://github.com/darkone-linux/pypilot-nix/compare/v0.1.1...HEAD
-[0.1.1]: https://github.com/darkone-linux/pypilot-nix/compare/v0.1.0...v0.1.1
 [0.1.1]: https://github.com/darkone-linux/pypilot-nix/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/darkone-linux/pypilot-nix/releases/tag/v0.1.0
