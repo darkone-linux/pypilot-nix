@@ -23,10 +23,12 @@ let
   cfg = config.services.navigation.desktop;
   opencpn = config.services.navigation.opencpn;
   pypilot = config.services.navigation.pypilot;
+  signalk = config.services.navigation.signalk;
   inherit (lib)
     mkIf
     concatStringsSep
     optional
+    optionalString
     ;
 
   # Wallpaper blue; `accent` is a touch darker so the focused title bar and the
@@ -261,13 +263,14 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
         <!-- Super+Space opens the start menu (nwg-drawer). -->
         <keybind key="W-space"><action name="Execute"><command>${nwgDrawer}</command></action></keybind>
 
-        <!-- Custom Ctrl+Alt launchers (slow apps reuse the notify wrappers). -->
+        <!-- Custom Ctrl+Alt launchers (slow apps reuse the notify wrappers);
+             app-bound ones drop out with their service, like the menus. -->
         <keybind key="C-A-t"><action name="Execute"><command>${bin.terminal}</command></action></keybind>
-        <keybind key="C-A-o"><action name="Execute"><command>${launch.opencpn}</command></action></keybind>
+        ${optionalString opencpn.enable ''<keybind key="C-A-o"><action name="Execute"><command>${launch.opencpn}</command></action></keybind>''}
         <keybind key="C-A-g"><action name="Execute"><command>${launch.xygrib}</command></action></keybind>
         <keybind key="C-A-n"><action name="Execute"><command>${bin.notes}</command></action></keybind>
         <keybind key="C-A-w"><action name="Execute"><command>${launch.browser}</command></action></keybind>
-        <keybind key="C-A-s"><action name="Execute"><command>${launch.signalk}</command></action></keybind>
+        ${optionalString signalk.enable ''<keybind key="C-A-s"><action name="Execute"><command>${launch.signalk}</command></action></keybind>''}
 
         <!-- Print grabs the whole screen, Shift+Print a selected region. -->
         <keybind key="Print"><action name="Execute"><command>${screenshot "full"}</command></action></keybind>
@@ -320,18 +323,20 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     <openbox_menu>
       <menu id="root-menu" label="Menu">
         <menu id="apps-menu" label="Applications" icon="applications-other">
-          <item label="OpenCPN" icon="opencpn"><action name="Execute"><command>${launch.opencpn}</command></action></item>
+          ${optionalString opencpn.enable ''<item label="OpenCPN" icon="opencpn"><action name="Execute"><command>${launch.opencpn}</command></action></item>''}
           <item label="XyGrib" icon="gnome-weather"><action name="Execute"><command>${launch.xygrib}</command></action></item>
-          <item label="SignalK" icon="applications-internet"><action name="Execute"><command>${launch.signalk}</command></action></item>
+          ${optionalString signalk.enable ''<item label="SignalK" icon="applications-internet"><action name="Execute"><command>${launch.signalk}</command></action></item>''}
           <item label="Navigateur" icon="chromium"><action name="Execute"><command>${launch.browser}</command></action></item>
           <item label="Éditeur" icon="featherpad"><action name="Execute"><command>${bin.notes}</command></action></item>
         </menu>
-        <menu id="pypilot-menu" label="PyPilot" icon="marble">
-          <item label="Control" icon="preferences-system"><action name="Execute"><command>${launch.pypilotControl}</command></action></item>
-          <item label="Calibration" icon="applications-science"><action name="Execute"><command>${launch.pypilotCalibration}</command></action></item>
-          <item label="Client" icon="utilities-system-monitor"><action name="Execute"><command>${launch.pypilotClient}</command></action></item>
-          <item label="Web" icon="web-browser"><action name="Execute"><command>${launch.pypilotWeb}</command></action></item>
-        </menu>
+        ${optionalString pypilot.enable ''
+          <menu id="pypilot-menu" label="PyPilot" icon="marble">
+            <item label="Control" icon="preferences-system"><action name="Execute"><command>${launch.pypilotControl}</command></action></item>
+            <item label="Calibration" icon="applications-science"><action name="Execute"><command>${launch.pypilotCalibration}</command></action></item>
+            <item label="Client" icon="utilities-system-monitor"><action name="Execute"><command>${launch.pypilotClient}</command></action></item>
+            <item label="Web" icon="web-browser"><action name="Execute"><command>${launch.pypilotWeb}</command></action></item>
+          </menu>
+        ''}
         <menu id="tools-menu" label="Outils" icon="applications-utilities">
           <item label="xgps" icon="org.gnome.Maps"><action name="Execute"><command>${bin.xgps}</command></action></item>
           <item label="Calculatrice" icon="qalculate"><action name="Execute"><command>${bin.calculator}</command></action></item>
@@ -402,8 +407,8 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
       "height": 40,
       "spacing": 4,
       "modules-left": [
-        "custom/menu", "custom/terminal", "custom/opencpn", "custom/xygrib",
-        "custom/signalk", "custom/browser", "custom/notes", "wlr/taskbar"
+        "custom/menu", "custom/terminal",${optionalString opencpn.enable ''"custom/opencpn",''} "custom/xygrib",
+        ${optionalString signalk.enable ''"custom/signalk", ''}"custom/browser", "custom/notes", "wlr/taskbar"
       ],
       "modules-center": [ "clock" ],
       "modules-right": [ "custom/bright-down", "custom/bright-up", "cpu", "memory", "temperature", "network", "tray" ],
@@ -514,8 +519,8 @@ mkIf (cfg.enable && cfg.compositor == "labwc") {
     pkgs.gawk
     pkgs.geeqie
     navBlueTheme
-    signalkDesktop
-  ];
+  ]
+  ++ optional signalk.enable signalkDesktop;
 
   # Symbols-only feeds the panel glyphs; JetBrains Mono is the editor/terminal font.
   fonts.packages = [

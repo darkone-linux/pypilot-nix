@@ -434,13 +434,19 @@ in
 
     services.navigation._resolved = resolvedDevices;
 
-    # OpenCPN's pypilot plugin defaults to a hardcoded remote host (192.168.14.1);
-    # pin it to the co-located pypilot so it connects over loopback out of the box.
-    services.navigation.opencpn.extraConfig = mkIf (cfg.opencpn.enable && cfg.pypilot.enable) ''
-      [PlugIns/pypilot]
-      Host=127.0.0.1
-      AutoDiscover=0
-    '';
+    # When both run, ship and enable OpenCPN's pypilot plugin automatically (no
+    # need to wire `opencpn.plugins`/`enabledPlugins` by hand). The plugin
+    # defaults to a hardcoded remote host (192.168.14.1); pin it to the
+    # co-located pypilot so it connects over loopback out of the box.
+    services.navigation.opencpn = mkIf (cfg.opencpn.enable && cfg.pypilot.enable) {
+      plugins = [ pkgs.opencpn-plugin-pypilot ];
+      enabledPlugins = [ "libpypilot_pi.so" ];
+      extraConfig = ''
+        [PlugIns/pypilot]
+        Host=127.0.0.1
+        AutoDiscover=0
+      '';
+    };
 
     # GPS served by gpsd, feeding signalk and the system clock.
     services.gpsd = mkIf cfg.gps.enable {
