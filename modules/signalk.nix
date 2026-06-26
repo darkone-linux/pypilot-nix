@@ -11,6 +11,7 @@
   config,
   lib,
   pkgs,
+  navLib,
   ...
 }:
 
@@ -24,9 +25,6 @@ let
     optionals
     types
     ;
-
-  # Project library; serial-registry dedup lives there to stay unit-testable.
-  navLib = import ../lib { inherit lib; };
 
   stateDir = "/var/lib/signalk";
 

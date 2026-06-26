@@ -10,20 +10,21 @@
 # hosts/common.nix — or by the consumer when importing this module standalone.
 # (A module must not set nixpkgs.overlays itself: it breaks pinned-pkgs setups
 # such as the NixOS test framework.)
+#
+# `navLib` (the project library) is injected via specialArgs by the flake host
+# builders; a standalone consumer must provide it the same way.
 
 {
   config,
   lib,
   pkgs,
+  navLib,
   ...
 }:
 
 let
   cfg = config.services.navigation;
   aiscfg = cfg.ais;
-
-  # Project library; serial-registry algorithms live there to stay unit-testable.
-  navLib = import ../lib { inherit lib; };
 
   inherit (lib)
     mkIf

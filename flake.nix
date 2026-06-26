@@ -32,6 +32,10 @@
       # as overlays.default and applied by hosts/common.nix.
       marineOverlay = import ./pkgs;
 
+      # Local navigation library (navLib), injected into modules via specialArgs
+      # instead of per-module `import ../lib` (single source, no relative paths).
+      navLib = import ./lib { inherit (nixpkgs) lib; };
+
       # Run `f` against nixpkgs extended with the marine overlay, per system.
       forAllSystems =
         f: nixpkgs.lib.genAttrs systems (system: f (nixpkgs.legacyPackages.${system}.extend marineOverlay));
@@ -47,7 +51,7 @@
       mkRpiHost =
         { board, modules }:
         nixos-raspberrypi.lib.nixosSystem {
-          specialArgs = { inherit nixos-raspberrypi; };
+          specialArgs = { inherit nixos-raspberrypi navLib; };
           modules =
             board
             ++ [
@@ -64,6 +68,7 @@
         { modules }:
         nixpkgs.lib.nixosSystem {
           system = "aarch64-linux";
+          specialArgs = { inherit navLib; };
           modules = [ ./hosts/common.nix ] ++ modules;
         };
 
@@ -102,7 +107,7 @@
         (marinePackages pkgs)
         // {
           unit = import ./tests/unit-check.nix { inherit pkgs; };
-          integration = import ./tests/integration.nix { inherit pkgs; };
+          integration = import ./tests/integration.nix { inherit pkgs navLib; };
         }
       );
 
@@ -129,6 +134,9 @@
       # Adds the custom marine packages (pypilot, signalk-server, …) to pkgs;
       # the service modules resolve their default `package` through it.
       overlays.default = marineOverlay;
+
+      # Pure navigation helpers, also injected into the modules via specialArgs.
+      lib = navLib;
 
       nixosModules = {
 

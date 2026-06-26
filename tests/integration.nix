@@ -4,7 +4,7 @@
 # binaries run and the services come up and answer. Call with the target pkgs:
 # aarch64-linux for the real target, x86_64-linux for fast local feedback.
 
-{ pkgs }:
+{ pkgs, navLib }:
 
 let
   # The nodes need the custom packages; apply the overlay here since
@@ -13,6 +13,9 @@ let
 in
 navPkgs.testers.runNixOSTest {
   name = "navigation-integration";
+
+  # navLib is injected the same way the flake host builders do it.
+  node.specialArgs = { inherit navLib; };
 
   nodes.boat =
     { ... }:

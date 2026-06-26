@@ -5,14 +5,16 @@
 # once. Conflicts (two devices wanting the same BCM GPIO) are caught by
 # assertions, fed by the internal gpioClaims registry each module appends to.
 
-{ config, lib, ... }:
+{
+  config,
+  lib,
+  navLib,
+  ...
+}:
 
 let
   cfg = config.services.navigation;
   inherit (lib) mkOption types;
-
-  # Project library; pin-conflict detection lives there so it stays unit-testable.
-  navLib = import ../../lib { inherit lib; };
 
   conflictMessage = navLib.hardware.gpioConflictMessage cfg.hardware.gpioClaims;
 in
