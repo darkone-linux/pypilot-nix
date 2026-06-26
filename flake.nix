@@ -90,12 +90,18 @@
         }
       )) { aarch64-linux = sdImages; };
 
-      # Level 1 (package builds + their import/smoke checks) and level 2A (VM
-      # integration test) — run by `nix flake check`.
+      # Pure unit tests (nix-unit) over lib/. Run with `just test` or
+      # `nix-unit --flake .#libTests`.
+      libTests = import ./tests/unit { inherit (nixpkgs) lib; };
+
+      # Level 1 (package builds + their import/smoke checks), the pure unit
+      # suites (level 0) and level 2A (VM integration test) — run by
+      # `nix flake check`.
       checks = forAllSystems (
         pkgs:
         (marinePackages pkgs)
         // {
+          unit = import ./tests/unit-check.nix { inherit pkgs; };
           integration = import ./tests/integration.nix { inherit pkgs; };
         }
       );
@@ -113,6 +119,7 @@
             pkgs.shellcheck
             pkgs.shfmt
             pkgs.nil
+            pkgs.nix-unit
           ];
         };
       });

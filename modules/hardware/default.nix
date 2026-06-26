@@ -11,19 +11,10 @@ let
   cfg = config.services.navigation;
   inherit (lib) mkOption types;
 
-  # Map every claimed BCM pin to the owners that claim it.
-  ownersByPin = lib.foldl' (
-    acc: claim:
-    lib.foldl' (
-      a: pin: a // { "${toString pin}" = (a."${toString pin}" or [ ]) ++ [ claim.owner ]; }
-    ) acc claim.pins
-  ) { } cfg.hardware.gpioClaims;
+  # Project library; pin-conflict detection lives there so it stays unit-testable.
+  navLib = import ../../lib { inherit lib; };
 
-  conflicts = lib.filterAttrs (_pin: owners: lib.length owners > 1) ownersByPin;
-
-  # Devices involved in any conflict, and the pins they fight over.
-  contendedPins = lib.attrNames conflicts;
-  contendingOwners = lib.unique (lib.concatLists (lib.attrValues conflicts));
+  conflictMessage = navLib.hardware.gpioConflictMessage cfg.hardware.gpioClaims;
 in
 {
   imports = [
@@ -98,11 +89,8 @@ in
     # Single assertion: incompatible devices share BCM GPIOs and cannot coexist.
     assertions = [
       {
-        assertion = conflicts == { };
-        message =
-          "services.navigation.hardware: ${lib.concatStringsSep ", " contendingOwners} "
-          + "claim the same BCM GPIO(s) ${lib.concatStringsSep ", " contendedPins}; "
-          + "enable only one of these HATs/modules.";
+        assertion = conflictMessage == null;
+        message = lib.optionalString (conflictMessage != null) conflictMessage;
       }
     ];
   };

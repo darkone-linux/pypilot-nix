@@ -42,6 +42,24 @@ format:
     treefmt --no-cache --quiet
 
 #==============================================================================
+# Test
+#==============================================================================
+
+# Pure unit tests over lib/ (nix-unit)
+[group('test')]
+test:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "[ {{ CYAN }}NPY{{ NORMAL }} ] NIX-UNIT • Running unit tests..."
+
+    # Eval the suites directly, not `--flake .#libTests`: nix-unit's strict
+    # locker tries to re-lock the heavy nixos-raspberrypi input and fails in
+    # pure mode, where `nix eval`/getFlake resolve the pinned lock fine. The
+    # suites only need nixpkgs.lib. CI gate stays `nix flake check` (.#checks.unit).
+    nix-unit --gc-roots-dir /tmp --impure \
+        --expr 'import ./tests/unit { lib = (builtins.getFlake (toString ./.)).inputs.nixpkgs.lib; }'
+
+#==============================================================================
 # Build
 #==============================================================================
 
