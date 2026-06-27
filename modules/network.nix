@@ -204,7 +204,7 @@ in
         enable = true;
         radios.${hs.interface} = {
           band = "2g";
-          #inherit (hs) channel countryCode;
+          inherit (hs) channel countryCode;
           networks.${hs.interface} = {
             inherit (hs) ssid;
             authentication = {
@@ -252,6 +252,20 @@ in
 
     # DHCP + DNS for the LAN, bound to the bridge or the AP interface.
     (mkIf (gatewayMode || hs.enable) {
+
+      # Trust the LAN: the firewall otherwise drops inbound DHCP/DNS before
+      # dnsmasq sees it (client requests arrive, no offer). Also exposes the
+      # on-board services (SignalK, OpenCPN...) to LAN clients.
+      networking.firewall.trustedInterfaces = [ lanInterface ];
+
+      # Hardening alternative (test later): drop trustedInterfaces above and
+      # open only the base network service instead.
+      #
+      # networking.firewall.interfaces.${lanInterface} = {
+      #   allowedUDPPorts = [ 67 53 ];
+      #   allowedTCPPorts = [ 53 ];
+      # };
+
       services.dnsmasq = {
         enable = true;
         settings = {
