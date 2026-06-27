@@ -173,8 +173,9 @@ in
       default = { };
       description = ''
         Overrides merged (recursively) over the generated settings.json. Seeded
-        into StateDirectory on first start only; delete the file there to
-        re-seed from this option.
+        into StateDirectory on first start only — except pipedProviders, which is
+        reconciled from Nix on every start. To re-seed the other keys, delete the
+        file there.
       '';
     };
 
@@ -209,11 +210,28 @@ in
         SIGNALK_NODE_CONFIG_DIR = stateDir;
       };
 
-      # Seed settings.json once; afterwards the running server owns it.
+      # Seed settings.json once, then let the running server (and web UI) own it
+      # — except pipedProviders, which is declarative: Nix owns the data sources,
+      # so reconcile just that key on every start while preserving every
+      # runtime-managed key (security, installed plugins, UI edits). A UI edit to
+      # a connection therefore lives until the next restart, when Nix wins.
       preStart = ''
-        if [ ! -e ${stateDir}/settings.json ]; then
-          ${pkgs.coreutils}/bin/cp ${settingsFile} ${stateDir}/settings.json
-          ${pkgs.coreutils}/bin/chmod 0644 ${stateDir}/settings.json
+        live=${stateDir}/settings.json
+
+        if [ ! -e "$live" ]; then
+          ${pkgs.coreutils}/bin/cp ${settingsFile} "$live"
+          ${pkgs.coreutils}/bin/chmod 0644 "$live"
+        else
+          tmp=$(${pkgs.coreutils}/bin/mktemp ${stateDir}/.settings.json.XXXXXX)
+
+          # Replace only pipedProviders; keep the live file on any jq error.
+          if ${pkgs.jq}/bin/jq --slurpfile gen ${settingsFile} \
+               '.pipedProviders = $gen[0].pipedProviders' "$live" > "$tmp"; then
+            ${pkgs.coreutils}/bin/mv "$tmp" "$live"
+          else
+            ${pkgs.coreutils}/bin/rm -f "$tmp"
+            echo "signalk: pipedProviders reconcile failed; settings.json left as is" >&2
+          fi
         fi
       '';
 
