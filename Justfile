@@ -172,32 +172,53 @@ gc host:
 # Release
 #==============================================================================
 
-# Promote the Unreleased changelog to <version>, commit and tag v<version>
+# Promote the Unreleased changelog, bumping patch|minor|major; commit and tag
 [group('release')]
-bump version:
+bump level="patch":
     #!/usr/bin/env bash
     set -euo pipefail
-    v="{{ version }}"
-    tag="v$v"
+    level="{{ level }}"
     repo="https://github.com/darkone-linux/pypilot-nix"
     say() { echo "[ {{ CYAN }}NPY{{ NORMAL }} ] BUMP • $*"; }
 
-    # Guard: strict semver, clean tree, fresh tag.
-    if [[ ! "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-      say "invalid version '$v' (expected X.Y.Z)." >&2
+    # Guard: known bump level, clean tree.
+    if [[ "$level" != patch && "$level" != minor && "$level" != major ]]; then
+      say "invalid level '$level' (expected patch|minor|major)." >&2
       exit 1
     fi
     if ! git diff --quiet || ! git diff --cached --quiet; then
       say "working tree not clean, commit or stash first." >&2
       exit 1
     fi
-    if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
-      say "tag $tag already exists." >&2
+
+    # The Unreleased section must hold something to release: enforces the
+    # "update changelog, then bump" flow.
+    body="$(awk '/^## \[Unreleased\]/{f=1;next} /^## \[/{f=0} f' CHANGELOG.md)"
+    if [[ -z "$(echo "$body" | tr -d '[:space:]')" ]]; then
+      say "Unreleased changelog is empty — update CHANGELOG.md first." >&2
       exit 1
     fi
 
     prev="$(git describe --tags --abbrev=0 2>/dev/null || true)"
     date="$(date +%Y-%m-%d)"
+
+    # Derive the next version from the latest tag and the bump level.
+    base="${prev#v}"
+    [[ -n "$base" ]] || base="0.0.0"
+    IFS=. read -r major minor patch <<<"$base"
+    case "$level" in
+      major) major=$((major + 1)); minor=0; patch=0 ;;
+      minor) minor=$((minor + 1)); patch=0 ;;
+      patch) patch=$((patch + 1)) ;;
+    esac
+    v="$major.$minor.$patch"
+    tag="v$v"
+
+    if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+      say "tag $tag already exists." >&2
+      exit 1
+    fi
+    say "$level: ${prev:-none} -> $tag"
 
     # Open a new version section right under the Unreleased heading.
     awk -v ver="$v" -v d="$date" '
