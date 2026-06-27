@@ -45,7 +45,7 @@ in
       enableSim7600x = mkOption {
         type = types.bool;
         default = false;
-        description = "Fit the SIM7600X 4G/LTE HAT (not implemented yet).";
+        description = "Fit the SIM7600X 4G/LTE HAT (cellular uplink + GNSS via ModemManager).";
       };
 
       enableXpt2046 = mkOption {
