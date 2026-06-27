@@ -275,6 +275,18 @@ before assigning the device (or stop the consuming service first). On a host wit
 the labwc desktop, the same scan is available from the right-click menu under
 **Outils → Scan Matériel**.
 
+### Signal K settings
+
+Signal K's `settings.json` lives in its state dir (`/var/lib/signalk`), owned by
+the running server and its web UI. It is seeded from Nix on first start only —
+**except `pipedProviders`** (the data sources: gpsd, pypilot, serial AIS, SDR
+AIS), which Nix owns and reconciles on **every** start. So enabling a source
+(e.g. `services.navigation.ais.sdr.enable`) takes effect on the next
+`nixos-rebuild switch`, no manual reset; a connection edited in the web UI lasts
+until the next restart, when the declarative config wins. Other keys (port,
+security, installed plugins) keep their seeded/runtime value — delete
+`settings.json` to re-seed them.
+
 ## Secrets & wifi (sops)
 
 Per-host secrets — today the wifi PSK of a headless node like `lab-rpi02` — are

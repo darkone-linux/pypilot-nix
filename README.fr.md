@@ -293,6 +293,19 @@ sondes produisent des entrées `serialDevices`.
 > consomme. Sur un hôte avec le bureau labwc, le même scan est accessible depuis
 > le menu clic-droit, **Outils → Scan Matériel**.
 
+### Réglages Signal K
+
+Le `settings.json` de Signal K vit dans son répertoire d'état
+(`/var/lib/signalk`), propriété du serveur et de son UI web. Il n'est semé depuis
+Nix qu'au premier démarrage — **sauf `pipedProviders`** (les sources de données :
+gpsd, pypilot, AIS série, AIS SDR), dont Nix est propriétaire et qu'il réconcilie
+à **chaque** démarrage. Activer une source (ex.
+`services.navigation.ais.sdr.enable`) prend donc effet au prochain
+`nixos-rebuild switch`, sans réinitialisation manuelle ; une connexion modifiée
+dans l'UI web survit jusqu'au prochain redémarrage, où la config déclarative
+reprend la main. Les autres clés (port, sécurité, plugins installés) gardent leur
+valeur initiale/runtime — supprimer `settings.json` pour les re-semer.
+
 ## Secrets et wifi (sops)
 
 Les secrets par hôte — aujourd'hui le PSK wifi d'un nœud headless comme
