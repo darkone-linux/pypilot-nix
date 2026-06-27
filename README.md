@@ -91,11 +91,14 @@ toggles.
 | Hardware                | Type   | Enable option (`services.navigation.`…)   | Status       |
 | ----------------------- | ------ | ----------------------------------------- | ------------ |
 | Pypilot HAT             | HAT    | `hardware.hats.enablePypilot`             | ✅ supported |
-| MacArthur HAT           | HAT    | `hardware.hats.enableMacArthur`           | ✅ supported |
-| Camera Module 3 Wide    | module | `hardware.modules.enableCamera3Wide`      | ✅ supported |
-| Kitronik 5038 AQ HAT    | HAT    | `hardware.hats.enableAqc5038`             | ✅ supported |
-| SIM7600X 4G/LTE HAT     | HAT    | `hardware.hats.enableSim7600x`            | 🚧 planned   |
-| XPT2046 touchscreen HAT | HAT    | `hardware.hats.enableXpt2046`             | 🚧 planned   |
+| MacArthur HAT           | HAT    | `hardware.hats.enableMacArthur`           | 🚧 testing   |
+| Camera Module 3 Wide    | module | `hardware.modules.enableCamera3Wide`      | 🚧 testing   |
+| Kitronik 5038 AQ HAT    | HAT    | `hardware.hats.enableAqc5038`             | 🚧 testing   |
+| SIM7600X 4G/LTE HAT     | HAT    | `hardware.hats.enableSim7600x`            | 🚧 testing   |
+| XPT2046 touchscreen HAT | HAT    | `hardware.hats.enableXpt2046`             | 🚧 testing   |
+
+> Only the Pypilot HAT is bench-validated. The others are implemented but still
+> **in testing** — they get the ✅ once confirmed working on real hardware.
 
 ### Pypilot HAT
 
@@ -120,7 +123,7 @@ services.navigation.hardware.hats.enableMacArthur = true;
 ```
 
 NMEA2000 and AIS flow into Signal K automatically; the RTC keeps time offline.
-Pinout is validated on real hardware (bench level 3).
+Pinout follows the HAT conventions; still in testing on real hardware.
 
 ### Camera Module 3 Wide
 
@@ -158,13 +161,39 @@ The module enables I2C, frees `serial0` for the RP2040 and installs `i2c-tools`
 plus a python3 with `pyserial` + `smbus2` (the protocols the HAT speaks).
 `i2cdetect -y 1` confirms the BME688 (0x76/0x77) and OLED (0x3c). Kitronik's
 driver is not in nixpkgs; install it in a venv with
-`pip install KitronikAirQualityControlHAT`.
+`pip install KitronikAirQualityControlHAT`. Details: [`doc/aqc5038.fr.md`](doc/aqc5038.fr.md).
 
-### Planned: SIM7600X and XPT2046
+### SIM7600X 4G/LTE HAT
 
-The SIM7600X 4G/LTE HAT and the XPT2046 SPI touchscreen are declared (their options
-exist and reserve the GPIOs they would drive, so conflicts are already accounted
-for) but not wired yet — enabling them today does nothing beyond that reservation.
+Cellular uplink and **GNSS**: a SIMCOM modem on USB (QMI `wwan0` for data, plus
+NMEA/AT serial ports). Managed by **ModemManager** alongside the host's wifi.
+
+```nix
+services.navigation.hardware.hats.enableSim7600x = true;
+services.navigation.sim7600xHat = {
+  apn = "internet"; # empty = auto-detect
+  gps.enable = true;
+};
+```
+
+`mmcli -m any` shows the modem; the data bearer comes up at boot and the GPS NMEA
+port is exposed as `/dev/ttySIM_gps`. The QMI raw-ip/DHCP path still needs bench
+confirmation. Details: [`doc/sim7600x.fr.md`](doc/sim7600x.fr.md).
+
+### XPT2046 touchscreen HAT
+
+SPI TFT (Waveshare-style 3.5" **ILI9486**) with an **XPT2046/ADS7846** resistive
+touch controller, both on SPI0. Shares SPI0 with the Pypilot/MacArthur HATs, so
+it cannot be combined with them.
+
+```nix
+services.navigation.hardware.hats.enableXpt2046 = true;
+services.navigation.xpt2046Hat.rotate = 90; # 0/90/180/270
+```
+
+The display comes up as `/dev/fb1` and the touch as a `/dev/input` device;
+calibrate with `ts_calibrate` or `xinput_calibrator`. Panel binding and touch axes
+still need bench confirmation. Details: [`doc/xpt2046.fr.md`](doc/xpt2046.fr.md).
 
 ## Serial devices & discovery
 
