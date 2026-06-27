@@ -14,6 +14,7 @@
 
 {
   config,
+  options,
   lib,
   pkgs,
   ...
@@ -29,6 +30,10 @@ let
     mkDefault
     types
     ;
+
+  # config.txt exists only on the nixos-raspberrypi base (Pi hosts), not the
+  # plain-nixpkgs lab VM. Gate the HDMI tweaks so the module stays evaluable.
+  hasConfigTxt = options.hardware ? raspberry-pi;
 in
 {
   imports = [
@@ -136,6 +141,41 @@ in
         security.rtkit.enable = mkDefault true;
         users.users.${cfg.user}.extraGroups = [ "audio" ];
       }
+
+      # ---- robust HDMI bring-up (Pi, KMS) ----
+      #
+      # The vendor base sets disable_fw_kms_setup=1, so the firmware writes no
+      # video= line and the kernel must probe the EDID at runtime. A monitor
+      # plugged after boot, weak hotplug (HPD), or a flaky EDID/cable then leaves
+      # the connector dark with no fallback — a black screen on the helm.
+      #
+      # Hand display setup back to the firmware: it reads the EDID at boot, passes
+      # the native mode on the cmdline, and (force_hotplug) lights the output even
+      # when HPD is low. Auto-detection kept, just made reliable.
+      (mkIf hasConfigTxt {
+        hardware.raspberry-pi.config.all.options = {
+
+          # Re-enable firmware KMS setup (base default is 1 = disabled). Integer
+          # 0, not boolean false: the renderer does toString, and `false` would
+          # emit an empty `disable_fw_kms_setup=`.
+          disable_fw_kms_setup = {
+            enable = true;
+            value = 0;
+          };
+
+          # Assume a display is attached even if HPD is not asserted.
+          hdmi_force_hotplug = {
+            enable = true;
+            value = 1;
+          };
+
+          # Drive the port in HDMI mode (sound enabled), not DVI.
+          hdmi_drive = {
+            enable = true;
+            value = 2;
+          };
+        };
+      })
 
       # ---- always-on (compositor-agnostic) ----
       (mkIf cfg.alwaysOn {
