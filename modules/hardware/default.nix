@@ -24,6 +24,7 @@ in
     ./macarthur-hat.nix
     ./sim7600x-hat.nix
     ./xpt2046-hat.nix
+    ./aqc5038-hat.nix
     ./camera3-wide.nix
   ];
 
@@ -51,6 +52,12 @@ in
         type = types.bool;
         default = false;
         description = "Fit the XPT2046 touchscreen HAT (not implemented yet).";
+      };
+
+      enableAqc5038 = mkOption {
+        type = types.bool;
+        default = false;
+        description = "Fit the Kitronik 5038 Air Quality Control HAT (BME688, OLED, RP2040 I/O).";
       };
     };
 

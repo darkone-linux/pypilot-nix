@@ -93,6 +93,7 @@ toggles.
 | Pypilot HAT             | HAT    | `hardware.hats.enablePypilot`             | ✅ supported |
 | MacArthur HAT           | HAT    | `hardware.hats.enableMacArthur`           | ✅ supported |
 | Camera Module 3 Wide    | module | `hardware.modules.enableCamera3Wide`      | ✅ supported |
+| Kitronik 5038 AQ HAT    | HAT    | `hardware.hats.enableAqc5038`             | ✅ supported |
 | SIM7600X 4G/LTE HAT     | HAT    | `hardware.hats.enableSim7600x`            | 🚧 planned   |
 | XPT2046 touchscreen HAT | HAT    | `hardware.hats.enableXpt2046`             | 🚧 planned   |
 
@@ -141,6 +142,23 @@ services.navigation.hardware.modules.camera3Wide.streaming = {
 machine: WebRTC in a browser at `http://<host>.local:8889/cam`, or RTSP at
 `rtsp://<host>.local:8554/cam` (VLC, mpv). Hardware H.264 encoding keeps the CPU
 idle, and the camera only powers up while a client is connected.
+
+### Kitronik 5038 Air Quality Control HAT
+
+Environmental sensing and I/O: a **BME688** (temperature, pressure, humidity, air
+quality index, eCO2) and a 128x64 **OLED** on I2C, plus an on-board **RP2040**
+co-processor on `serial0` driving 3 ZIP LEDs, three ADC inputs and an RTC. Header
+GPIOs break out a buzzer, two 1A outputs and a servo.
+
+```nix
+services.navigation.hardware.hats.enableAqc5038 = true;
+```
+
+The module enables I2C, frees `serial0` for the RP2040 and installs `i2c-tools`
+plus a python3 with `pyserial` + `smbus2` (the protocols the HAT speaks).
+`i2cdetect -y 1` confirms the BME688 (0x76/0x77) and OLED (0x3c). Kitronik's
+driver is not in nixpkgs; install it in a venv with
+`pip install KitronikAirQualityControlHAT`.
 
 ### Planned: SIM7600X and XPT2046
 
