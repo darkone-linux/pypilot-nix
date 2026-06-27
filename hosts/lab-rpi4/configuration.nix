@@ -23,6 +23,13 @@
   # On-box dev/admin toolbox: Zed editor + essentials, admin and Nix tooling.
   services.navigation.development.enable = true;
 
+  # Bench gateway: route+NAT the LAN through eth0, serve DHCP/DNS, and run the
+  # on-board WiFi hotspot (ssid Lab-rpi4OnBoardWifi) bridged into the same LAN.
+  services.navigation.network = {
+    upstreamInterface = "eth0";
+    hotspot.enable = true;
+  };
+
   # labwc by default; set compositor = "gnome" here to test the GNOME session.
   # services.navigation.desktop.compositor = "gnome";
 }

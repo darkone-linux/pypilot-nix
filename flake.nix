@@ -183,7 +183,7 @@
         desktop = ./modules/desktop;
         development = ./modules/development.nix;
         cellular = ./modules/cellular.nix;
-        hotspot = ./modules/hotspot.nix;
+        network = ./modules/network.nix;
       };
 
       # All hosts share the navigation modules; add boats/benches here without

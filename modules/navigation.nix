@@ -234,7 +234,7 @@ in
     ./desktop
     ./development.nix
     ./cellular.nix
-    ./hotspot.nix
+    ./network.nix
   ];
 
   options.services.navigation = {

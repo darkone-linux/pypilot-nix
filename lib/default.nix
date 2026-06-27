@@ -7,7 +7,8 @@
 let
   hardware = import ./hardware.nix { inherit lib; };
   serial = import ./serial.nix { inherit lib; };
+  network = import ./network.nix { inherit lib; };
 in
 {
-  inherit hardware serial;
+  inherit hardware serial network;
 }

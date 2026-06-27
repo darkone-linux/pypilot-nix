@@ -79,6 +79,34 @@ plus dans `flake.nix`, puis déposer un `hosts/<host>/configuration.nix` ; les
 modules sont partagés, aucune logique n'est dupliquée. L'ensemble des options
 vit dans `modules/navigation.nix`.
 
+## Réseau : passerelle et hotspot
+
+Le module `network` transforme le boîtier en routeur de réseau local et/ou en
+point d'accès WiFi sur un `172.16.0.0/16` figé (le boîtier est `172.16.0.1`),
+dnsmasq servant le DHCP et le DNS. Les deux rôles sont inactifs tant qu'on ne les
+configure pas :
+
+- **Passerelle** : définir `upstreamInterface` sur le lien Internet. Toutes les
+  *autres* interfaces sont pontées dans le réseau local et NATées au travers. Une
+  seule passerelle par réseau local.
+- **Hotspot** : `hotspot.enable = true` diffuse un AP WPA2 (défauts : SSID
+  `<Hostname>OnBoardWifi`, mot de passe `ILikePyPilot`, sur `wlan0`). Avec une
+  passerelle il rejoint le même réseau local et le même pool DHCP ; seul, il sert
+  le sien.
+
+Fixer des adresses avec `fixedIps` (MAC → IP, dans `172.16.0.2`–`172.16.0.254`) :
+
+```nix
+services.navigation.network = {
+  upstreamInterface = "eth0";          # rôle passerelle (omettre pour hotspot seul)
+  hotspot.enable = true;               # point d'accès WiFi
+  fixedIps."de:ad:be:ef:00:11" = "172.16.0.10";
+};
+```
+
+Changer le SSID et le mot de passe de l'AP avant de prendre la mer — ils sont en
+clair dans le store Nix.
+
 ## Matériel supporté
 
 Les HAT se posent sur le connecteur 40 broches ; les modules d'extension

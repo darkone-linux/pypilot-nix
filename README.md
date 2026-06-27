@@ -79,6 +79,31 @@ Add a boat or bench by declaring one more `nixosConfigurations` entry in
 shared, so no logic is duplicated. The full option set lives in
 `modules/navigation.nix`.
 
+## Network: gateway & hotspot
+
+The `network` module turns the box into a LAN router and/or a WiFi access point
+over a fixed `172.16.0.0/16` (the box is `172.16.0.1`), with dnsmasq serving DHCP
+and DNS. Both roles are off until configured:
+
+- **Gateway**: set `upstreamInterface` to the Internet uplink. Every *other*
+  interface is bridged into the LAN and NATed out through it. One gateway per LAN.
+- **Hotspot**: set `hotspot.enable = true` to broadcast a WPA2 AP (defaults: SSID
+  `<Hostname>OnBoardWifi`, password `ILikePyPilot`, on `wlan0`). With a gateway it
+  joins the same LAN and DHCP pool; standalone it serves its own.
+
+Pin addresses with `fixedIps` (MAC → IP, inside `172.16.0.2`–`172.16.0.254`):
+
+```nix
+services.navigation.network = {
+  upstreamInterface = "eth0";          # gateway role (omit for hotspot-only)
+  hotspot.enable = true;               # WiFi access point
+  fixedIps."de:ad:be:ef:00:11" = "172.16.0.10";
+};
+```
+
+Change the AP SSID/password before going to sea — they are world-readable in the
+Nix store.
+
 ## Supported hardware
 
 HATs sit on the 40-pin header; add-on modules use their own connectors. Enable
