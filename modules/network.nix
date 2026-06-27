@@ -196,25 +196,31 @@ in
     # Hotspot: hostapd on the AP interface.
     (mkIf hs.enable {
 
-      # Load the CRDA regulatory database: without it hostapd advertises
-      # country/channel params the client cannot validate (assoc status=38,
-      # then deauth INVALID_AKMP). countryCode alone is not enough.
+      # Load the CRDA regulatory database so the configured countryCode/channel
+      # map to a known reg domain (matches the working agate AP).
       hardware.wirelessRegulatoryDatabase = true;
 
       services.hostapd = {
         enable = true;
         radios.${hs.interface} = {
           band = "2g";
-          inherit (hs) channel countryCode;
+          #inherit (hs) channel countryCode;
           networks.${hs.interface} = {
             inherit (hs) ssid;
             authentication = {
-              mode = "wpa2-sha256";
+              mode = "wpa2-sha1";
               wpaPassword = hs.password;
             };
 
+            settings = {
+
+              # The Pi onboard Broadcom (brcmfmac) AP firmware has no PMF; the
+              # module forces ieee80211w=1, which the chip rejects (assoc
+              # status=38 with sha256, deauth INVALID_AKMP with sha1). Disable.
+              ieee80211w = 0;
+            }
             # With a gateway, hand the radio to br-lan (one shared DHCP pool).
-            settings = optionalAttrs gatewayMode { bridge = "br-lan"; };
+            // optionalAttrs gatewayMode { bridge = "br-lan"; };
           };
         };
       };
