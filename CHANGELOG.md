@@ -7,6 +7,22 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- `services.navigation.network`: single module wiring the on-board LAN. Set
+  `upstreamInterface` to make the host a gateway (DHCP/DNS/NAT over a fixed
+  172.16.0.0/16) and `hotspot.enable` for the WiFi access point; with both on,
+  the radio is bridged into the same subnet for one shared DHCP pool.
+  `fixedIps` pins MAC->IP reservations.
+- On-board WiFi hotspot now works on the Pi's Broadcom (`brcmfmac`) radio:
+  regulatory database loaded, PMF disabled (the chip rejects `ieee80211w`),
+  and a country code (FR default) so the 2.4 GHz AP can start.
+
+### Changed
+
+- The WiFi hotspot is configured through the unified
+  `services.navigation.network` module instead of a standalone hotspot module.
+
 ## [0.1.2] - 2026-06-26
 
 ### Added
