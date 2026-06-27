@@ -23,10 +23,13 @@
   # On-box dev/admin toolbox: Zed editor + essentials, admin and Nix tooling.
   services.navigation.development.enable = true;
 
-  # Bench gateway: route+NAT the LAN through eth0, serve DHCP/DNS, and run the
+  # Bench gateway: route+NAT the LAN through end0, serve DHCP/DNS, and run the
   # on-board WiFi hotspot (ssid Lab-rpi4OnBoardWifi) bridged into the same LAN.
+  #
+  # Pi 4/5 name the onboard ethernet end0 (not eth0); the masquerade binds to
+  # this exact name, so a wrong name silently breaks client NAT.
   services.navigation.network = {
-    upstreamInterface = "eth0";
+    upstreamInterface = "end0";
     hotspot.enable = true;
   };
 

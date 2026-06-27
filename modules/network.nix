@@ -51,11 +51,14 @@ in
     upstreamInterface = mkOption {
       type = types.str;
       default = "";
-      example = "eth0";
+      example = "end0";
       description = ''
         Internet/upstream interface. Setting it makes this host the LAN gateway:
         all other interfaces are bridged into the local network and NATed out
         through this one. Empty: no gateway (hotspot may still run standalone).
+
+        The masquerade binds to this exact name; on Pi 4/5 the onboard ethernet
+        is `end0` (not `eth0`). A wrong name silently breaks client NAT.
       '';
     };
 
