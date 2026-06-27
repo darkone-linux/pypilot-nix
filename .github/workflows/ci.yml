@@ -38,21 +38,23 @@ jobs:
         run: nix flake check -L --no-build
 
       # Level 1 + 2A natively on x86_64.
+      #
+      # --fallback: a flaky cache fetch builds from source instead of failing.
       - name: Build packages (x86_64)
         run: |
-          nix build -L \
+          nix build -L --fallback \
             .#checks.x86_64-linux.rtimulib2 \
             .#checks.x86_64-linux.pypilot-data \
             .#checks.x86_64-linux.pypilot \
             .#checks.x86_64-linux.signalk-server
 
       - name: Integration test (x86_64)
-        run: nix build -L .#checks.x86_64-linux.integration
+        run: nix build -L --fallback .#checks.x86_64-linux.integration
 
       # Level 1 on aarch64 via binfmt (mostly substituted from the cache).
       - name: Build packages (aarch64, emulated)
         run: |
-          nix build -L \
+          nix build -L --fallback \
             .#checks.aarch64-linux.rtimulib2 \
             .#checks.aarch64-linux.pypilot-data \
             .#checks.aarch64-linux.pypilot \
