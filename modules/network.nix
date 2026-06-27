@@ -102,6 +102,16 @@ in
         default = 6;
         description = "2.4 GHz channel.";
       };
+
+      countryCode = mkOption {
+        type = types.str;
+        default = "FR";
+        description = ''
+          Regulatory domain (ISO 3166-1). Mandatory for the AP to come up: under
+          the default world domain "00" the 2.4 GHz channels are no-initiating-
+          radiation and hostapd fails with "Unable to setup interface".
+        '';
+      };
     };
   };
 
@@ -189,7 +199,7 @@ in
         enable = true;
         radios.${hs.interface} = {
           band = "2g";
-          inherit (hs) channel;
+          inherit (hs) channel countryCode;
           networks.${hs.interface} = {
             inherit (hs) ssid;
             authentication = {
