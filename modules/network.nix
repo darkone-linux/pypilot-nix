@@ -195,6 +195,12 @@ in
 
     # Hotspot: hostapd on the AP interface.
     (mkIf hs.enable {
+
+      # Load the CRDA regulatory database: without it hostapd advertises
+      # country/channel params the client cannot validate (assoc status=38,
+      # then deauth INVALID_AKMP). countryCode alone is not enough.
+      hardware.wirelessRegulatoryDatabase = true;
+
       services.hostapd = {
         enable = true;
         radios.${hs.interface} = {
