@@ -7,6 +7,19 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- New HAT modules: XPT2046 (SPI ILI9486 LCD with ADS7846 touchscreen),
+  SIM7600X (4G/LTE via ModemManager plus GNSS), and Kitronik 5038 Air
+  Quality Control.
+- Camera Module 3 Wide support: streams the CSI camera over RTSP/WebRTC
+  via MediaMTX.
+- `nav-discover` now detects HATs over i2c/USB and emits the matching
+  hardware toggles automatically.
+- New host `lab-rpi02`: a Pi Zero 2 W wifi node with Camera Module 3 Wide.
+- `just init <host>`: idempotent per-host sops age key and encrypted wifi
+  PSK setup, with the PSK decrypted at activation through sops-nix.
+
 ## [0.1.1] - 2026-06-26
 
 ### Added
