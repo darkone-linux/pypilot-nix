@@ -51,7 +51,7 @@ in
       enableXpt2046 = mkOption {
         type = types.bool;
         default = false;
-        description = "Fit the XPT2046 touchscreen HAT (not implemented yet).";
+        description = "Fit the XPT2046 touchscreen HAT (SPI ILI9486 LCD + resistive touch).";
       };
 
       enableAqc5038 = mkOption {
