@@ -12,7 +12,10 @@
   fetchFromGitHub,
   cmake,
   pkg-config,
-  rtl-sdr,
+
+  # rtl-sdr-blog fork, not osmocom mainline: mainline librtlsdr lacks the R828D
+  # tuner init the RTL-SDR Blog v4 needs — it enumerates but decodes nothing.
+  rtl-sdr-blog,
   libusb1,
   zlib,
   openssl,
@@ -37,7 +40,7 @@ stdenv.mkDerivation (finalAttrs: {
   ];
 
   buildInputs = [
-    rtl-sdr
+    rtl-sdr-blog
     libusb1
     zlib
     openssl

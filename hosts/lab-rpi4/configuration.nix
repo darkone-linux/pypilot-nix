@@ -14,6 +14,11 @@
   services.navigation.gps.vendorId = "067b";
   services.navigation.gps.productId = "2303";
 
+  # AIS over SDR: the RTL-SDR Blog v4 dongle decodes AIS into Signal K. Wired
+  # plug-and-play (udev starts ais-catcher when the dongle appears); the DVB
+  # kernel driver is blacklisted so it does not grab the device.
+  services.navigation.ais.sdr.enable = true;
+
   # Bench display: chartplotter desktop (labwc default, always-on).
   services.navigation.opencpn.enable = true;
   services.navigation.opencpn.plugins = [ pkgs.opencpn-plugin-pypilot ];

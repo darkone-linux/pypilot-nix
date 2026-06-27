@@ -506,24 +506,43 @@ in
       # one stable symlink per match, from the unified serial registry.
       ++ serialRules
 
-      # RTL-SDR dongle readable by the ais-catcher service (system, not a seat
-      # user, so uaccess does not apply — assign a group explicitly).
-      ++ optionals aisSdr [
-        ''SUBSYSTEM=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2832", GROUP="plugdev", MODE="0660"''
-        ''SUBSYSTEM=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2838", GROUP="plugdev", MODE="0660"''
-      ]
+      # RTL-SDR dongle hotplug. hardware.rtl-sdr owns perms/group/DVB blacklist;
+      # this adds only the systemd wiring so ais-catcher starts on plug (coldplug
+      # covers boot) and stops on unplug. SYSTEMD_ALIAS anchors dev-rtlsdr0.device
+      # for the service's bindsTo; DEVTYPE guards against per-interface events.
+      ++ optionals aisSdr (
+        map
+          (
+            productId:
+            ''SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="${productId}", SYMLINK+="rtlsdr0", TAG+="systemd", ENV{SYSTEMD_ALIAS}="/dev/rtlsdr0", ENV{SYSTEMD_WANTS}+="ais-catcher.service"''
+          )
+          [
+            "2832"
+            "2838"
+          ]
+      )
     );
 
     # AIS via SDR: decode from the RTL-SDR dongle and forward NMEA over UDP to
-    # the signalk SDR provider (:10110). The dongle conflicts with the kernel
-    # DVB driver, so blacklist it. Dongle + reception are bench items (level 3).
-    boot.blacklistedKernelModules = mkIf aisSdr [ "dvb_usb_rtl28xxu" ];
-    users.groups.plugdev = mkIf aisSdr { };
+    # the signalk SDR provider (:10110). hardware.rtl-sdr supplies the udev perms
+    # (every RTL id, incl. the v4), the plugdev group, the DVB-driver blacklist
+    # and the rtl_* CLI tools; package = the blog fork for v4 (R828D) support.
+    # Dongle + reception are bench items (level 3).
+    hardware.rtl-sdr = mkIf aisSdr {
+      enable = true;
+      package = pkgs.rtl-sdr-blog;
+    };
 
     systemd.services.ais-catcher = mkIf aisSdr {
       description = "AIS-catcher SDR receiver feeding Signal K over UDP";
-      wantedBy = [ "multi-user.target" ];
-      after = [ "network.target" ];
+
+      # Plug-and-play: no static wantedBy — udev (SYSTEMD_WANTS) starts this on
+      # plug, coldplug covers boot, and bindsTo stops it when the dongle leaves.
+      bindsTo = [ "dev-rtlsdr0.device" ];
+      after = [
+        "dev-rtlsdr0.device"
+        "network.target"
+      ];
 
       serviceConfig = {
         ExecStart = "${pkgs.ais-catcher}/bin/AIS-catcher -d:0 -u 127.0.0.1 ${toString aiscfg.sdr.udpPort}";

@@ -271,8 +271,10 @@ in
           mtr # traceroute + ping
           iperf3 # throughput testing
 
-          # SDR / radio.
-          rtl-sdr # rtl_fm, rtl_power, rtl_test
+          # SDR / radio. Blog fork for RTL-SDR v4 (R828D) support; rtl_biast
+          # drives the bias-tee that powers an active AIS antenna.
+          rtl-sdr-blog # rtl_test, rtl_biast, rtl_eeprom, rtl_fm, rtl_power
+          ais-catcher # AIS decoder CLI (AIS-catcher -d:0 -v to diagnose)
           multimon-ng # decode POCSAG / AFSK / AIS audio
 
           # GPIO.
