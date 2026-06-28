@@ -41,6 +41,14 @@ format:
     echo "[ {{ CYAN }}NPY{{ NORMAL }} ] TREEFMT • Full formatting..."
     treefmt --no-cache --quiet
 
+# Inspections (flake check)
+[group('dev')]
+inspect:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "[ {{ CYAN }}NPY{{ NORMAL }} ] FLAKE • Checking configurations..."
+    nix flake check -L --no-build --all-systems
+
 #==============================================================================
 # Test
 #==============================================================================

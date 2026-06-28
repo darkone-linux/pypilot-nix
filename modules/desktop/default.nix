@@ -152,7 +152,12 @@ in
       # Hand display setup back to the firmware: it reads the EDID at boot, passes
       # the native mode on the cmdline, and (force_hotplug) lights the output even
       # when HPD is low. Auto-detection kept, just made reliable.
-      (mkIf hasConfigTxt {
+      #
+      # optionalAttrs, not mkIf: the option is undeclared on the lab VM. mkIf
+      # only gates the value — it still emits the `hardware.raspberry-pi` path,
+      # which fails the "option does not exist" check. optionalAttrs drops the
+      # key entirely when absent.
+      (lib.optionalAttrs hasConfigTxt {
         hardware.raspberry-pi.config.all.options = {
 
           # Re-enable firmware KMS setup (base default is 1 = disabled). Integer
