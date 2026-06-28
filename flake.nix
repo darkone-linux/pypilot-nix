@@ -236,6 +236,7 @@
       apps.aarch64-linux.lab-vm = {
         type = "app";
         program = "${self.nixosConfigurations.lab-vm.config.system.build.vm}/bin/run-lab-vm-vm";
+        meta.description = "Run the persistent aarch64 lab VM (level 2B)";
       };
     };
 }

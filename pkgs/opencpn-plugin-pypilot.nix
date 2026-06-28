@@ -11,6 +11,9 @@
   cmake,
   pkg-config,
   gettext,
+  # opencpn (nixpkgs) still builds against wx 3.2; the plugin loads into it at
+  # runtime and MUST share the same wx ABI. wxGTK32 is a deprecated alias but
+  # the only path to 3.2 here (wxwidgets_3_2 is absent, wxwidgets_3_3 mismatches).
   wxGTK32,
   libGLU,
   libGL,
