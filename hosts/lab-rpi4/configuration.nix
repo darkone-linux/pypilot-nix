@@ -28,6 +28,9 @@
   # On-box dev/admin toolbox: Zed editor + essentials, admin and Nix tooling.
   services.navigation.development.enable = true;
 
+  # Coding AI agents (Claude Code + OpenCode); off by default, on for the bench.
+  services.navigation.development.ai = true;
+
   # Bench gateway: route+NAT the LAN through end0, serve DHCP/DNS, and run the
   # on-board WiFi hotspot (ssid Lab-rpi4OnBoardWifi) bridged into the same LAN.
   #

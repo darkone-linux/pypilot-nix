@@ -9,6 +9,10 @@
 #
 # Helix is a terminal editor (headless-friendly); Geany is graphical and only
 # useful where a desktop session runs. Disable `editor` to drop both.
+#
+# The `ai` group (Claude Code + OpenCode) is the only one off by default: unfree
+# and cloud-oriented, outside the on-board diagnostics scope — a bare `enable`
+# does not pull it. Enable it per host.
 
 {
   config,
@@ -178,9 +182,19 @@ in
       default = true;
       description = "On-board diagnostics: GPS/NMEA, CAN/NMEA2000, network, SDR, GPIO.";
     };
+
+    ai = mkOption {
+      type = types.bool;
+      default = false;
+      description = "Coding AI agents: Claude Code and OpenCode CLIs (unfree, cloud).";
+    };
   };
 
   config = mkIf cfg.enable {
+
+    # claude-code is unfree; allow it narrowly when the AI group is on.
+    nixpkgs.config.allowUnfreePredicate = mkIf cfg.ai (pkg: lib.getName pkg == "claude-code");
+
     environment.systemPackages =
 
       # Editors: Helix (terminal, hx) + dark-themed Geany (graphical).
@@ -280,6 +294,12 @@ in
           # GPIO.
           libgpiod # gpioget, gpioset, gpiomon, gpiodetect
         ]
-      );
+      )
+
+      # Coding AI agents (opt-in: unfree + cloud, off by default).
+      ++ optionals cfg.ai [
+        pkgs.claude-code # Anthropic CLI (headless / SSH friendly)
+        pkgs.opencode # Terminal AI agent
+      ];
   };
 }
