@@ -12,6 +12,7 @@
   fetchFromGitHub,
   cmake,
   pkg-config,
+  installShellFiles,
 
   # rtl-sdr-blog fork, not osmocom mainline: mainline librtlsdr lacks the R828D
   # tuner init the RTL-SDR Blog v4 needs — it enumerates but decodes nothing.
@@ -30,13 +31,14 @@ stdenv.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "jvde-github";
     repo = "AIS-catcher";
-    rev = "v${finalAttrs.version}";
+    tag = "v${finalAttrs.version}";
     hash = "sha256-YDkqIoW3DDwUfAJftvfnmsIQYCq9ujYrB8RvZRiIexg=";
   };
 
   nativeBuildInputs = [
     cmake
     pkg-config
+    installShellFiles
   ];
 
   buildInputs = [
@@ -69,10 +71,10 @@ stdenv.mkDerivation (finalAttrs: {
     (lib.cmakeBool "WEBVIEWER" false)
   ];
 
-  # Upstream ships no install rule; place the single binary by hand.
+  # Upstream ships no install rule; place the single binary with installBin.
   installPhase = ''
     runHook preInstall
-    install -Dm755 AIS-catcher $out/bin/AIS-catcher
+    installBin AIS-catcher
     runHook postInstall
   '';
 

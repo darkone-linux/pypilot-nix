@@ -5,13 +5,14 @@
 # captures. The companion CLI to `can-utils` for the MacArthur HAT's can0 link.
 #
 # Plain Makefile build (only libc/-lm), binaries land in `rel/<platform>/`; no
-# upstream `make install` worth using, so the binaries are placed by hand.
+# upstream `make install`, so the binaries are placed with installBin.
 # Not yet in nixpkgs; packaged locally with the intent to upstream it.
 
 {
   lib,
   stdenv,
   fetchFromGitHub,
+  installShellFiles,
 }:
 
 stdenv.mkDerivation (finalAttrs: {
@@ -21,16 +22,18 @@ stdenv.mkDerivation (finalAttrs: {
   src = fetchFromGitHub {
     owner = "canboat";
     repo = "canboat";
-    rev = "v${finalAttrs.version}";
+    tag = "v${finalAttrs.version}";
     hash = "sha256-ptuhp5cvMbfc2+RmdygzsegGwWgIgkgAk3NQ76j1pMw=";
   };
+
+  nativeBuildInputs = [ installShellFiles ];
 
   enableParallelBuilding = true;
 
   # Binaries go to rel/<uname>-<arch>/; glob it so aarch64 and x86_64 both work.
   installPhase = ''
     runHook preInstall
-    install -Dm755 -t $out/bin rel/*/*
+    installBin rel/*/*
     runHook postInstall
   '';
 
