@@ -1,0 +1,12 @@
+# sops creation rules — managed by `just init <host>`.
+#
+# One age recipient per host: `secrets/<host>.yaml` is encrypted to that host's
+# key. The matching PRIVATE key lives uncommitted in secrets/keys/<host>.txt and
+# is copied to the device boot partition (/boot/firmware/secrets/age.txt).
+#
+# Public keys are not secret — committing them here is expected. `just init
+# navpi` adds the rule below the first time it runs (navpi has no wifi PSK by
+# default, so it may stay empty). After editing by hand, re-encrypt:
+# `sops updatekeys secrets/<host>.yaml`.
+
+creation_rules: []

@@ -26,8 +26,6 @@ let
   hasSecrets = builtins.pathExists sopsFile;
 in
 {
-  imports = [ ../rpi.nix ];
-
   config = lib.mkMerge [
     {
       networking.hostName = hostName;

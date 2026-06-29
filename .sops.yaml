@@ -1,12 +1,11 @@
 # sops creation rules — managed by `just init <host>`.
 #
-# One age recipient per host: `secrets/<host>.yaml` is encrypted to that host's
-# key. The matching PRIVATE key lives uncommitted in secrets/keys/<host>.txt and
-# is copied to the device boot partition (/boot/firmware/secrets/age.txt).
+# This distro ships NO real secret: rules are added per host by `just init`,
+# which mints the host's age key (uncommitted, secrets/keys/<host>.txt) and
+# registers its PUBLIC key here for secrets/<host>.yaml. Public keys are not
+# secret — committing them is expected. The example host lab-rpi02 evaluates
+# without any secret (a build-time warning), so `nix flake check` stays green.
 #
-# Public keys are not secret — committing them here is expected. After editing a
-# recipient by hand, re-encrypt: `sops updatekeys secrets/<host>.yaml`.
+# After editing a recipient by hand, re-encrypt: `sops updatekeys secrets/<host>.yaml`.
 
-creation_rules:
-  - path_regex: secrets/lab-rpi02\.yaml$
-    age: age1afwu7lz4zu9l94qyphx53x96523984fpvlvlx3e4sdu3g7t744equphdx9
+creation_rules: []

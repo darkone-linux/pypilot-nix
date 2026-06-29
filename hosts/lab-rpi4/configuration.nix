@@ -3,8 +3,6 @@
 { pkgs, ... }:
 
 {
-  imports = [ ../rpi.nix ];
-
   networking.hostName = "lab-rpi4";
   services.navigation.hardware.hats.enablePypilot = true;
 

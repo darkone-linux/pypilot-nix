@@ -34,19 +34,65 @@ NixOS. Cibles : Raspberry Pi 4 (principal) et Pi 5 (expérimental) sur
 - **Testé en CI** : vérifications d'import des paquets, plus un test d'intégration en VM NixOS.
 - **Headless** : SSH, mDNS `.local`, un compte admin `skipper`, aucun écran requis.
 
+## Démarrage rapide
+
+Ce dépôt est la **distribution** : modules, paquets, le constructeur d'hôtes et
+des bancs d'exemple. Votre bateau vit dans un **projet séparé et minimal** qui
+importe la distribution et ne contient que ses hôtes et ses secrets. En attendant
+le script de génération, créez-le à la main (ou depuis le template).
+
+Depuis le template :
+
+```sh
+mkdir ~/src/navpi && cd ~/src/navpi
+nix flake init -t github:darkone-linux/pypilot-nix#navpi
+```
+
+Ou à la main — tout le `flake.nix` du projet aval :
+
+```nix
+{
+  inputs.pypilot-nix.url = "github:darkone-linux/pypilot-nix";
+
+  outputs = { self, pypilot-nix, ... }: {
+    # board : "rpi3" | "rpi4" | "rpi5" | "rpi02" | "vm"
+    nixosConfigurations.navpi = pypilot-nix.lib.mkHost {
+      board = "rpi4";
+      modules = [ ./hosts/navpi/configuration.nix ];
+    };
+
+    packages.aarch64-linux.navpi-sdImage =
+      self.nixosConfigurations.navpi.config.system.build.sdImage;
+  };
+}
+```
+
+`mkHost` câble toute la pile boot/image-SD/services depuis l'enum board, donc le
+flake aval ne déclare **que** `pypilot-nix` — ni `nixos-raspberrypi` ni `sops-nix`
+à redéclarer. Ensuite :
+
+```sh
+just sd-image navpi          # construit l'image bootable
+just init navpi              # génère la clé age sops (et la PSK wifi, le cas échéant)
+just apply navpi switch      # déploie en SSH
+```
+
+**Distribution locale pour le co-développement** — déposez un clone de ce dépôt
+dans `./navpi-nix` au sein du projet aval ; le Justfile le détecte et importe
+l'arbre local au lieu de l'input en ligne (comme `/etc/nixos` pointant vers un
+checkout local). Retirez-le pour revenir à la distribution en ligne épinglée.
+
 ## Configuration
 
 `hosts/common.nix` démarre la pile (`services.navigation.enable`) avec les
 services headless activés par défaut. Un fichier par hôte ne fixe ensuite que le
-nom de la machine et le HAT :
+nom de la machine et le HAT — aucun `imports`, `mkHost` injecte la base partagée :
 
 ```nix
-# hosts/navpi/configuration.nix
+# hosts/<host>/configuration.nix
 { ... }:
 {
-  imports = [ ../rpi.nix ];
-
-  networking.hostName = "navpi";
+  networking.hostName = "lab-rpi4";
 
   # HATs installés sur le Pi, activez n'importe quelle combinaison :
   services.navigation.hardware.hats.enablePypilot = true;
@@ -61,11 +107,11 @@ nom de la machine et le HAT :
 }
 ```
 
-Hôtes fournis dans le flake :
+Hôtes d'exemple / banc fournis dans cette distribution (l'hôte de production du
+bateau vit dans son propre dépôt aval) :
 
 | Hôte        | Cible                 | HAT / module  | Rôle           |
 | ----------- | --------------------- | ------------- | -------------- |
-| `navpi`     | Raspberry Pi 4        | Pypilot HAT   | Production     |
 | `lab-rpi4`  | Raspberry Pi 4        | Pypilot HAT   | Labo / banc    |
 | `lab-rpi5`  | Raspberry Pi 5 ¹      | MacArthur HAT | Labo / banc    |
 | `lab-rpi02` | Raspberry Pi Zero 2 W | Camera 3 Wide | Labo / caméra ² |
@@ -74,10 +120,10 @@ Hôtes fournis dans le flake :
 ¹ Le support de boot du Pi 5 est expérimental (image aarch64 générique).
 ² Nœud Wi-Fi headless : diffuse sa caméra CSI en RTSP/WebRTC.
 
-Pour ajouter un bateau ou un banc, déclarer une entrée `nixosConfigurations` de
-plus dans `flake.nix`, puis déposer un `hosts/<host>/configuration.nix` ; les
-modules sont partagés, aucune logique n'est dupliquée. L'ensemble des options
-vit dans `modules/navigation.nix`.
+Pour ajouter un banc ici, déclarer une entrée `nixosConfigurations` de plus dans
+`flake.nix` (via `mkHost`), puis déposer un `hosts/<host>/configuration.nix` ; les
+modules sont partagés, aucune logique n'est dupliquée. L'ensemble des options vit
+dans `modules/navigation.nix`.
 
 ## Réseau : passerelle et hotspot
 
@@ -355,18 +401,18 @@ builder distant, ou un hôte x86_64 avec l'émulation `binfmt`. Le cache
 `nix-community` évite de recompiler le gros du système.
 
 ```shell
-just sd-image navpi
-# ou : nix build .#packages.aarch64-linux.navpi-sdImage -o result-navpi
+just sd-image lab-rpi4
+# ou : nix build .#packages.aarch64-linux.lab-rpi4-sdImage -o result-lab-rpi4
 ```
 
 Le résultat est une image compressée :
 
 ```
-result-navpi/sd-image/pypilot-nix-navpi.img.zst
+result-lab-rpi4/sd-image/pypilot-nix-lab-rpi4.img.zst
 ```
 
-Hôtes avec image SD : `navpi`, `lab-rpi4`, `lab-rpi5`. Le `lab-vm` tourne en VM
-(voir plus bas).
+Hôtes avec image SD : `lab-rpi4`, `lab-rpi5`, `lab-rpi02`. Le `lab-vm` tourne en
+VM (voir plus bas). Votre hôte bateau se construit pareil depuis son projet aval.
 
 ## Installation
 
@@ -375,7 +421,7 @@ Hôtes avec image SD : `navpi`, `lab-rpi4`, `lab-rpi5`. Le `lab-vm` tourne en VM
 L'image est compressée en zstd : décompresser et écrire en un seul pipe.
 
 ```shell
-zstd -dc result-navpi/sd-image/*.img.zst \
+zstd -dc result-lab-rpi4/sd-image/*.img.zst \
   | sudo dd of=/dev/sdX bs=4M status=progress conv=fsync
 ```
 
@@ -396,8 +442,8 @@ Plus de reflashage ensuite : construire en local et pousser la closure.
 
 ```shell
 nixos-rebuild switch \
-  --flake .#navpi \
-  --target-host skipper@navpi.local --use-remote-sudo \
+  --flake .#lab-rpi4 \
+  --target-host skipper@lab-rpi4.local --use-remote-sudo \
   --build-host localhost
 ```
 

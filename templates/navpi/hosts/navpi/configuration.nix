@@ -1,10 +1,10 @@
-# navpi — production host aboard. Raspberry Pi 4 by default.
+# navpi — production host aboard. Raspberry Pi 4. Downstream boat config: it
+# consumes services.navigation.* (options come from pypilot-nix via mkHost →
+# common.nix); no module/package paths reach back into the distro.
 
 { pkgs, ... }:
 
 {
-  imports = [ ../rpi.nix ];
-
   networking.hostName = "navpi";
 
   # HATs fitted on the Pi — Pypilot by default; toggle others as needed.

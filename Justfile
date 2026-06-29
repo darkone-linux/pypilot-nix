@@ -71,7 +71,7 @@ test:
 # Build
 #==============================================================================
 
-# Build the SD image for a host (navpi, lab-rpi4, lab-rpi5)
+# Build the SD image for a host (lab-rpi4, lab-rpi5, lab-rpi02)
 [group('build')]
 sd-image host:
     #!/usr/bin/env bash

@@ -53,6 +53,18 @@
       # instead of per-module `import ../lib` (single source, no relative paths).
       navLib = import ./lib { inherit (nixpkgs) lib; };
 
+      # Host builder exposed as `lib.mkHost`: a board enum (rpi3/rpi4/rpi5/rpi02/
+      # vm) drives the whole boot/sd-image wiring, so downstream flakes declare
+      # only `pypilot-nix` as input. Carries the distro's own input closure.
+      mkHost = import ./lib/mk-host.nix {
+        inherit
+          nixpkgs
+          nixos-raspberrypi
+          sops-nix
+          navLib
+          ;
+      };
+
       # Run `f` against nixpkgs extended with the marine overlay, per system.
       forAllSystems =
         f: nixpkgs.lib.genAttrs systems (system: f (nixpkgs.legacyPackages.${system}.extend marineOverlay));
@@ -61,42 +73,9 @@
       # outputs: pick the overlay's own attribute names out of the extended set.
       marinePackages = pkgs: nixpkgs.lib.getAttrs (builtins.attrNames (marineOverlay pkgs pkgs)) pkgs;
 
-      # A Raspberry Pi host on the vendor-firmware base. `board` is the list of
-      # nixos-raspberrypi board modules (rpi-4/5 base + display); common.nix and
-      # the sd-image builder are shared. Their nixosSystem brings the vendor
-      # nixpkgs, kernel, firmware and bootloader.
-      mkRpiHost =
-        { board, modules }:
-        nixos-raspberrypi.lib.nixosSystem {
-          specialArgs = { inherit nixos-raspberrypi navLib; };
-          modules =
-            board
-            ++ [
-              nixos-raspberrypi.nixosModules.sd-image
-              ./hosts/common.nix
-            ]
-            ++ modules;
-        };
-
-      inherit (nixos-raspberrypi.nixosModules)
-        raspberry-pi-02
-        raspberry-pi-4
-        raspberry-pi-5
-        ;
-
-      # Plain aarch64 NixOS host (the lab VM boots no Pi firmware).
-      mkVmHost =
-        { modules }:
-        nixpkgs.lib.nixosSystem {
-          system = "aarch64-linux";
-          specialArgs = { inherit navLib; };
-          modules = [ ./hosts/common.nix ] ++ modules;
-        };
-
       # Per-host bootable SD images (aarch64), keyed `<host>-sdImage`. Only the
       # Raspberry Pi hosts produce one (the lab VM boots no SD card).
       rpiHosts = [
-        "navpi"
         "lab-rpi4"
         "lab-rpi5"
         "lab-rpi02"
@@ -163,8 +142,11 @@
       # the service modules resolve their default `package` through it.
       overlays.default = marineOverlay;
 
-      # Pure navigation helpers, also injected into the modules via specialArgs.
-      lib = navLib;
+      # Pure navigation helpers (also injected into modules via specialArgs) plus
+      # `mkHost`, the host builder downstream flakes call to assemble a config.
+      lib = navLib // {
+        inherit mkHost;
+      };
 
       nixosModules = {
 
@@ -186,46 +168,31 @@
         network = ./modules/network.nix;
       };
 
-      # All hosts share the navigation modules; add boats/benches here without
-      # duplicating logic. Pi 4 helm/bench on the vendor base, Pi 5 bench, plus
-      # a plain aarch64 VM for emulated integration.
+      # Example/bench hosts, all built through the same `mkHost` exposed to
+      # downstream flakes (the real boat host lives in its own repo). Pi 4/5
+      # benches, a wifi Pi Zero 2 W sensor node, plus a plain aarch64 VM for
+      # emulated integration.
       nixosConfigurations = {
-        navpi = mkRpiHost {
-          board = [
-            raspberry-pi-4.base
-            raspberry-pi-4.display-vc4
-          ];
-          modules = [ ./hosts/navpi/configuration.nix ];
-        };
-
-        lab-rpi4 = mkRpiHost {
-          board = [
-            raspberry-pi-4.base
-            raspberry-pi-4.display-vc4
-          ];
+        lab-rpi4 = mkHost {
+          board = "rpi4";
           modules = [ ./hosts/lab-rpi4/configuration.nix ];
         };
 
-        lab-rpi5 = mkRpiHost {
-          board = [
-            raspberry-pi-5.base
-            raspberry-pi-5.display-vc4
-          ];
+        lab-rpi5 = mkHost {
+          board = "rpi5";
           modules = [ ./hosts/lab-rpi5/configuration.nix ];
         };
 
         # Pi Zero 2 W headless node: wifi-connected, Camera Module 3 Wide. No
-        # display board module (camera/sensor box, not a chartplotter helm).
-        # sops-nix decrypts its wifi PSK at activation (see the host file).
-        lab-rpi02 = mkRpiHost {
-          board = [ raspberry-pi-02.base ];
-          modules = [
-            sops-nix.nixosModules.sops
-            ./hosts/lab-rpi02/configuration.nix
-          ];
+        # helm display (camera/sensor box); sops decrypts its wifi PSK.
+        lab-rpi02 = mkHost {
+          board = "rpi02";
+          sops = true;
+          modules = [ ./hosts/lab-rpi02/configuration.nix ];
         };
 
-        lab-vm = mkVmHost {
+        lab-vm = mkHost {
+          board = "vm";
           modules = [ ./hosts/lab-vm/configuration.nix ];
         };
       };
@@ -238,5 +205,14 @@
         program = "${self.nixosConfigurations.lab-vm.config.system.build.vm}/bin/run-lab-vm-vm";
         meta.description = "Run the persistent aarch64 lab VM (level 2B)";
       };
+
+      # Scaffold a downstream boat project (own flake importing this distro, a
+      # host file, portable Justfile, sops/.gitignore):
+      # `nix flake init -t github:darkone-linux/pypilot-nix#navpi`.
+      templates.navpi = {
+        path = ./templates/navpi;
+        description = "Downstream boat config consuming pypilot-nix via lib.mkHost";
+      };
+      templates.default = self.templates.navpi;
     };
 }

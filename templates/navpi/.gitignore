@@ -1,0 +1,41 @@
+/.*
+!/.gitignore
+!/.ignore
+!/.specs
+!/.github
+!/.sops.yaml
+/*.md
+!/README.*
+!/TODO.*
+!/CHANGELOG.*
+/result
+/result-*
+/target/
+/docs
+/*.md
+tmp/
+*.iso
+*.lock
+
+# Local checkout of the common distro (pypilot-nix). When present, the Justfile
+# imports it instead of the online input; never committed here.
+/navpi-nix/
+
+# flake.lock MUST be tracked: pins inputs (kernel/firmware) for reproducible
+# builds. Untracked, Nix re-resolves inputs each eval and recompiles the kernel.
+!flake.lock
+*.log
+__pycache__/
+*.pyc
+!README*.md
+!TODO*.md
+!CHANGELOG*.md
+
+# sops: commit only the ENCRYPTED secrets/*.yaml. Never the private age keys
+# (one per host, minted by `just init`) or any decrypted output.
+/secrets/keys/
+age-key*.txt
+*.age
+keys.txt
+*.dec
+*.dec.*
