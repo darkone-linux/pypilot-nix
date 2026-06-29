@@ -19,16 +19,19 @@ the thin `flake.nix`. No module/package logic lives here.
 - Reproducibility chain: our `flake.lock` pins pypilot-nix; pypilot-nix's lock
   pins everything else.
 
-## Local vs online distro (like /etc/nixos → local checkout)
+## Single source switch (like /etc/nixos → local checkout)
 
-- Default: `flake.nix` input points online (`github:darkone-linux/pypilot-nix`).
-- Co-development: clone the distro at `./navpi-nix` (a real dir — a symlink
-  resolves to an absolute path that nix rejects in pure eval). The Justfile
-  detects it (`path_exists`) and injects `--override-input pypilot-nix
-  path:./navpi-nix` into every nix command (`{{ override }}`). No flake edit.
-- `./navpi-nix` is gitignored — never committed.
-- Standalone (online) use needs the distro's `mkHost` to be PUSHED to github,
-  then `just update` here to relock.
+- `flake.lock` is the ONLY switch: the distro is whatever it pins. `just update`
+  sets it — a local clone at `./navpi-nix` if present, else the online ref.
+- Every other recipe (`inspect`, `sd-image`, `apply`) just reads the lock — no
+  runtime override, never local+online mixed, never silent. `just pin` /
+  `just status` print the current source.
+- The local pin is stored as an ABSOLUTE path (nix canonicalises it). Fine for a
+  solo workstation (builds happen here, the closure is pushed to the Pi). Before
+  sharing/building elsewhere, `just update` with `./navpi-nix` removed re-pins
+  online → portable, committable lock.
+- `./navpi-nix` must be a real git clone (for `commit`/`amend`), and is gitignored:
+  `git clone git@github.com:darkone-linux/pypilot-nix.git navpi-nix`.
 
 ## Add a host
 
@@ -47,8 +50,12 @@ the thin `flake.nix`. No module/package logic lives here.
 
 ## just targets
 
-- Here: `clean` (fix+check+format), `inspect`, `sd-image`, `init`, `apply`,
-  `gc`, `update` — all override-aware.
+- Dev/deploy: `clean` (fix+check+format), `inspect`, `sd-image`, `init`, `apply`,
+  `gc` — all read the lock.
+- Source & co-dev: `update` (re-pin local/online), `status` (pin + git of both
+  repos), `commit "msg"` / `amend` (act on navpi-nix AND navpi at once, then
+  re-pin). `commit`/`amend` run git in the distro clone too, so it must be a real
+  clone.
 - Distro-only (not here): `test` (lib unit tests), `bump` (distro release).
 - `nix develop` reuses the distro's dev shell (just, sops, age, yq, nix tooling).
 

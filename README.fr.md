@@ -77,10 +77,19 @@ just init navpi              # génère la clé age sops (et la PSK wifi, le cas
 just apply navpi switch      # déploie en SSH
 ```
 
-**Distribution locale pour le co-développement** — déposez un clone de ce dépôt
-dans `./navpi-nix` au sein du projet aval ; le Justfile le détecte et importe
-l'arbre local au lieu de l'input en ligne (comme `/etc/nixos` pointant vers un
-checkout local). Retirez-le pour revenir à la distribution en ligne épinglée.
+**Distribution locale pour le co-développement** — comme `/etc/nixos` pointant
+vers un checkout local, `flake.lock` est l'unique aiguillage et `just update` le
+fixe : un clone git de ce dépôt dans `./navpi-nix` s'il existe, sinon la réf en
+ligne. Toutes les autres recettes lisent le lock — jamais local+online mélangés.
+`just status` / `just commit` / `just amend` pilotent ensuite git sur les deux
+dépôts à la fois.
+
+```sh
+git clone git@github.com:darkone-linux/pypilot-nix.git navpi-nix
+just update     # → épingle le clone local dans flake.lock
+just status     # montre le pin courant (local|online) + le git status des 2 dépôts
+# retirez ./navpi-nix puis `just update` pour ré-épingler la distribution en ligne
+```
 
 ## Configuration
 

@@ -77,10 +77,18 @@ just init navpi              # mint the sops age key (and wifi PSK, if any)
 just apply navpi switch      # deploy over SSH
 ```
 
-**Local distro for co-development** — drop a clone of this repo at
-`./navpi-nix` inside the downstream project; the Justfile auto-detects it and
-imports the local tree instead of the online input (like `/etc/nixos` pointing at
-a local checkout). Remove it to fall back to the pinned online distro.
+**Local distro for co-development** — like `/etc/nixos` pointing at a local
+checkout, `flake.lock` is the single switch and `just update` sets it: a git
+clone of this repo at `./navpi-nix` if present, else the online ref. Every other
+recipe just reads the lock — never local+online mixed. `just status` /
+`just commit` / `just amend` then drive git across both repos at once.
+
+```sh
+git clone git@github.com:darkone-linux/pypilot-nix.git navpi-nix
+just update     # → pins the local clone in flake.lock
+just status     # shows the current pin (local|online) + both repos' git status
+# remove ./navpi-nix and `just update` again to re-pin the online distro
+```
 
 ## Configuration
 

@@ -2,11 +2,11 @@
   description = "navpi — boat-specific navigation config (pypilot-nix downstream)";
 
   inputs = {
-    # The shared distro. Default: online. For local co-development, drop a clone
-    # (or symlink) of pypilot-nix at ./navpi-nix and the Justfile auto-injects
-    # `--override-input pypilot-nix path:./navpi-nix` — like /etc/nixos pointing
-    # at a local checkout. Nothing else to declare: nixos-raspberrypi, sops-nix
-    # and the marine overlay all come through pypilot-nix's own lock.
+    # The shared distro. The actual source is whatever `flake.lock` pins, set by
+    # `just update`: a local clone at ./navpi-nix if present, else this online
+    # ref (like /etc/nixos pointing at a local checkout). Single source, never
+    # mixed. Nothing else to declare — nixos-raspberrypi, sops-nix and the marine
+    # overlay all come through pypilot-nix's own lock.
     pypilot-nix.url = "github:darkone-linux/pypilot-nix";
   };
 
